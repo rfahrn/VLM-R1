@@ -156,7 +156,35 @@ class Qwen2VLModule(VLMBaseModule):
                         f.write(f"Content: {content}\n")
                         f.write(f"Solution: {sol}\n") 
         return rewards
+    @staticmethod
+    def medical_accuracy_reward(completions, solution, **kwargs):
+        """Custom accuracy reward tailored for medical classification or diagnosis."""
+        import re
+        import json
+    
+        rewards = []
+        answer_tag_pattern = r'<answer>(.*?)</answer>'
+        
+        for content, sol in zip(completions, solution):
+            try:
+                sol_json = json.loads(sol)
+                ground_truth = sol_json.get("label").lower()
+    
+                content_answer_match = re.search(answer_tag_pattern, content[0]["content"], re.DOTALL)
+                if content_answer_match:
+                    model_answer = content_answer_match.group(1).strip().lower()
+    
+                    reward = 1.0 if ground_truth == model_answer else 0.0
+                else:
+                    reward = 0.0
+            except Exception:
+                reward = 0.0
+            
+            rewards.append(reward)
+    
+        return rewards
 
+    """
     @staticmethod
     def select_reward_func(func: str, task_type: str):
         if func == "accuracy":
@@ -172,4 +200,25 @@ class Qwen2VLModule(VLMBaseModule):
                 case _:
                     raise ValueError(f"Unsupported reward function: {func}")
         else:
+            raise ValueError(f"Unsupported reward function: {func}")"""
+
+
+    @staticmethod
+    def select_reward_func(func: str, task_type: str):
+        if func == "accuracy":
+            match task_type:
+                case "rec":
+                    return Qwen2VLModule.iou_reward
+                case _:
+                    raise ValueError(f"Unsupported reward function: {func}")
+        elif func == "format":
+            match task_type:
+                case "rec":
+                    return Qwen2VLModule.format_reward_rec
+                case _:
+                    raise ValueError(f"Unsupported reward function: {func}")
+        elif func == "medical_accuracy":
+            return Qwen2VLModule.medical_accuracy_reward
+        else:
             raise ValueError(f"Unsupported reward function: {func}")
+
