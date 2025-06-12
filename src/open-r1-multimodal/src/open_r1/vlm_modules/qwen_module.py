@@ -159,29 +159,52 @@ class Qwen2VLModule(VLMBaseModule):
         
     @staticmethod
     def medical_accuracy_reward(completions, solution, **kwargs):
-        """Medical accuracy reward comparing generated answer against provided GPT responses."""
+        """Medical accuracy reward comparing generated answer against provided GPT text."""
         import re
-        
+    
         rewards = []
-        answer_tag_pattern = r'<answer>(.*?)<\/answer>'
+        answer_tag_pattern = r'<answer>(.*?)</answer>'
     
-        for content, sol in zip(completions, solution):
+        for completion, sol in zip(completions, solution):
             try:
-                # Extract the ground truth from provided solution (gpt message in conversations)
-                gt_match = re.search(answer_tag_pattern, sol, re.DOTALL)
-                ground_truth = gt_match.group(1).strip().lower() if gt_match else ""
+                # sol is already the plain expected answer
+                ground_truth = sol.strip().lower()
     
-                # Extract model-generated answer
-                content_answer_match = re.search(answer_tag_pattern, content[0]["content"], re.DOTALL)
-                model_answer = content_answer_match.group(1).strip().lower() if content_answer_match else ""
+                # extract the model’s answer from its <answer> tags
+                content = completion[0]["content"]
+                model_match = re.search(answer_tag_pattern, content, re.DOTALL)
+                model_answer = model_match.group(1).strip().lower() if model_match else ""
     
-                reward = 1.0 if ground_truth == model_answer else 0.0
+                reward = 1.0 if model_answer == ground_truth else 0.0
             except Exception:
                 reward = 0.0
     
             rewards.append(reward)
     
         return rewards
+
+
+    @staticmethod 
+    def combined_reward(completions, solution, **kwargs):
+        """
+        Weighted sum of:
+          - IoU reward (0–1)
+          - medical accuracy (0 or 1)
+          - format correctness (0 or 1)
+        """
+        # compute each vector
+        iou_rs    = Qwen2VLModule.iou_reward(completions, solution, **kwargs)
+        acc_rs    = Qwen2VLModule.medical_accuracy_reward(completions, solution, **kwargs)
+        fmt_rs    = Qwen2VLModule.format_reward_rec(completions, **kwargs)
+
+        # weights
+        w_iou, w_acc, w_fmt = 0.5, 0.3, 0.2
+
+        # combine
+        return [
+            w_iou * i + w_acc * a + w_fmt * f
+            for i, a, f in zip(iou_rs, acc_rs, fmt_rs)
+        ]
 
 
     """
@@ -219,6 +242,8 @@ class Qwen2VLModule(VLMBaseModule):
                     raise ValueError(f"Unsupported reward function: {func}")
         elif func == "medical_accuracy":
             return Qwen2VLModule.medical_accuracy_reward
+        elif func == "combined":
+            return Qwen2VLModule.combined_reward
         else:
             raise ValueError(f"Unsupported reward function: {func}")
 
