@@ -2,7 +2,8 @@ from transformers import Qwen2_5_VLForConditionalGeneration, Qwen2VLForCondition
 from typing import Dict, Any, Union
 from trl.data_utils import maybe_apply_chat_template
 import torch
-
+import re, json
+from datetime import datetime
 from open_r1.vlm_modules.vlm_module import VLMBaseModule
 
 class Qwen2VLModule(VLMBaseModule):
@@ -160,6 +161,8 @@ class Qwen2VLModule(VLMBaseModule):
     
     @staticmethod
     def iou_reward_new(completions, solution, **kwargs):
+        import re, json
+        from datetime import datetime
         def iou(b1,b2):
             x1 = max(b1[0],b2[0]); y1 = max(b1[1],b2[1])
             x2 = min(b1[2],b2[2]); y2 = min(b1[3],b2[3])
