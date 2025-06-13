@@ -161,8 +161,8 @@ class Qwen2VLModule(VLMBaseModule):
     
     @staticmethod
     def iou_reward_new(completions, solution, **kwargs):
-        import re, json
-        from datetime import datetime
+        import re
+        import json
 
         def iou(box1, box2):
             inter_x1 = max(box1[0], box2[0])
@@ -179,40 +179,48 @@ class Qwen2VLModule(VLMBaseModule):
             return float(inter) / union if union > 0 else 0.0
 
         rewards = []
+        answer_pattern = re.compile(r'<answer>(.*?)</answer>', re.DOTALL)
+
         for completion, sol in zip(completions, solution):
-            # extract ground truth box
-            sol_match = re.search(r'<answer>(.*?)</answer>', sol, re.DOTALL)
+            # --- parse ground truth ---
             gt_box = None
-            if sol_match:
-                data = json.loads(sol_match.group(1).strip())
-                if isinstance(data, dict) and "boxes" in data:
-                    boxes = data["boxes"]
-                    if boxes:
-                        gt_box = boxes[0]
-                elif isinstance(data, list) and len(data) == 4:
-                    gt_box = data
+            m = answer_pattern.search(sol or "")
+            if m:
+                txt = m.group(1).strip()
+                try:
+                    data = json.loads(txt)
+                    # dict with "boxes"
+                    if isinstance(data, dict) and "boxes" in data and data["boxes"]:
+                        gt_box = data["boxes"][0]
+                    # or raw list [x1,y1,x2,y2]
+                    elif isinstance(data, list) and len(data) == 4:
+                        gt_box = data
+                except (json.JSONDecodeError, TypeError):
+                    gt_box = None
 
-            # extract predicted box
-            content = completion[0]["content"]
-            pred_match = re.search(r'<answer>(.*?)</answer>', content, re.DOTALL)
+            # --- parse prediction ---
             pred_box = None
-            if pred_match:
-                data = json.loads(pred_match.group(1).strip())
-                if isinstance(data, dict) and "boxes" in data:
-                    pboxes = data["boxes"]
-                    if pboxes:
-                        pred_box = pboxes[0]
-                elif isinstance(data, list) and len(data) == 4:
-                    pred_box = data
+            content = completion[0].get("content", "")
+            m2 = answer_pattern.search(content)
+            if m2:
+                txt2 = m2.group(1).strip()
+                try:
+                    data2 = json.loads(txt2)
+                    if isinstance(data2, dict) and "boxes" in data2 and data2["boxes"]:
+                        pred_box = data2["boxes"][0]
+                    elif isinstance(data2, list) and len(data2) == 4:
+                        pred_box = data2
+                except (json.JSONDecodeError, TypeError):
+                    pred_box = None
 
-            # compute IoU if both present
+            # --- compute ---
             if gt_box is not None and pred_box is not None:
                 rewards.append(iou(pred_box, gt_box))
             else:
                 rewards.append(0.0)
 
         return rewards
-        
+
     
 
     @staticmethod 
