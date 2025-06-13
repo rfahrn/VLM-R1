@@ -186,7 +186,6 @@ class Qwen2VLModule(VLMBaseModule):
     ious = Qwen2VLModule.iou_reward_new(completions, solution, **kwargs)
     fmts = Qwen2VLModule.format_reward_rec(completions, **kwargs)
     return [0.5*i + 0.5*f for i,f in zip(ious, fmts)]
-    ]
 
 
     """
