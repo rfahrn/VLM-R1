@@ -157,31 +157,19 @@ class Qwen2VLModule(VLMBaseModule):
                         f.write(f"Solution: {sol}\n") 
         return rewards
         
-    @staticmethod
-    def medical_accuracy_reward(completions, solution, **kwargs):
-        """Medical accuracy reward comparing generated answer against provided GPT text."""
-        import re
-    
-        rewards = []
-        answer_tag_pattern = r'<answer>(.*?)</answer>'
-    
-        for completion, sol in zip(completions, solution):
-            try:
-                # sol is already the plain expected answer
-                ground_truth = sol.strip().lower()
-    
-                # extract the model’s answer from its <answer> tags
-                content = completion[0]["content"]
-                model_match = re.search(answer_tag_pattern, content, re.DOTALL)
-                model_answer = model_match.group(1).strip().lower() if model_match else ""
-    
-                reward = 1.0 if model_answer == ground_truth else 0.0
-            except Exception:
-                reward = 0.0
-    
-            rewards.append(reward)
-    
-        return rewards
+ @staticmethod
+ def medical_accuracy_reward(completions, solution, **kwargs):
+     import re, json
+     rewards = []
+     for completion, sol in zip(completions, solution):
+         ground_truth = sol.strip().lower()        # strip tags, parse JSON, then lowercase the label
+         payload = json.loads(re.search(r'<answer>(.*)</answer>', sol, re.DOTALL).group(1))
+         ground_truth = payload["label"].strip().lower()
+         content = completion[0]["content"]
+         model_match = re.search(r'<answer>(.*?)</answer>', content, re.DOTALL)
+         model_answer = model_match.group(1).strip().lower() if model_match else ""
+         rewards.append(1.0 if model_answer == ground_truth else 0.0)
+     return rewards
 
 
     @staticmethod 
