@@ -222,8 +222,6 @@ class Qwen2VLModule(VLMBaseModule):
                     return Qwen2VLModule.format_reward_rec
                 case _:
                     raise ValueError(f"Unsupported reward function: {func}")
-        elif func == "medical_accuracy":
-            return Qwen2VLModule.medical_accuracy_reward
         elif func == "combined":
             return Qwen2VLModule.combined_reward
         else:
