@@ -979,7 +979,10 @@ def main(script_args, training_args, model_args):
                 # Handle solution that could be a float or string
                 solution_value = item['conversations'][1]['value']
                 if isinstance(solution_value, str):
-                    item['solution'] = solution_value.replace('<answer>', '').replace('</answer>', '').strip()
+                    # item['solution'] = solution_value.replace('<answer>', '').replace('</answer>', '').strip()
+                    import re
+                    m = re.search(r"\[([0-9]+(?:\.[0-9]+)?),\s*([0-9]+(?:\.[0-9]+)?),\s*([0-9]+(?:\.[0-9]+)?),\s*([0-9]+(?:\.[0-9]+)?)\]", solution_value)
+                    item['solution'] = m.group(0) if m else "[]"
                 else:
                     # If it's a float or other non-string type, keep it as is
                     item['solution'] = str(solution_value)
