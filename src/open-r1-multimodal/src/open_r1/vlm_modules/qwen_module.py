@@ -178,33 +178,33 @@ class Qwen2VLModule(VLMBaseModule):
             pr = json.loads(m2.group(1))["boxes"][0] if m2 else None
             rewards.append(iou(pr,gt) if pr and gt else 0.0)
         return rewards
+        
     
-
-
-    @staticmethod 
-    def combined_reward(completions, solution, **kwargs):
-    ious = Qwen2VLModule.iou_reward_new(completions, solution, **kwargs)
-    fmts = Qwen2VLModule.format_reward_rec(completions, **kwargs)
-    return [0.5*i + 0.5*f for i,f in zip(ious, fmts)]
-
-
-    """
-    @staticmethod
-    def select_reward_func(func: str, task_type: str):
-        if func == "accuracy":
-            match task_type:
-                case "rec":
-                    return Qwen2VLModule.iou_reward
-                case _:
-                    raise ValueError(f"Unsupported reward function: {func}")
-        elif func == "format":
-            match task_type:
-                case "rec":
-                    return Qwen2VLModule.format_reward_rec
-                case _:
-                    raise ValueError(f"Unsupported reward function: {func}")
-        else:
-            raise ValueError(f"Unsupported reward function: {func}")"""
+    
+        @staticmethod 
+        def combined_reward(completions, solution, **kwargs):
+        ious = Qwen2VLModule.iou_reward_new(completions, solution, **kwargs)
+        fmts = Qwen2VLModule.format_reward_rec(completions, **kwargs)
+        return [0.5*i + 0.5*f for i,f in zip(ious, fmts)]
+    
+    
+        """
+        @staticmethod
+        def select_reward_func(func: str, task_type: str):
+            if func == "accuracy":
+                match task_type:
+                    case "rec":
+                        return Qwen2VLModule.iou_reward
+                    case _:
+                        raise ValueError(f"Unsupported reward function: {func}")
+            elif func == "format":
+                match task_type:
+                    case "rec":
+                        return Qwen2VLModule.format_reward_rec
+                    case _:
+                        raise ValueError(f"Unsupported reward function: {func}")
+            else:
+                raise ValueError(f"Unsupported reward function: {func}")"""
 
 
     @staticmethod
