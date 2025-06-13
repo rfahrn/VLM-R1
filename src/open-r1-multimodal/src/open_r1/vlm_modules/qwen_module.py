@@ -163,23 +163,54 @@ class Qwen2VLModule(VLMBaseModule):
     def iou_reward_new(completions, solution, **kwargs):
         import re, json
         from datetime import datetime
-        def iou(b1,b2):
-            x1 = max(b1[0],b2[0]); y1 = max(b1[1],b2[1])
-            x2 = min(b1[2],b2[2]); y2 = min(b1[3],b2[3])
-            if x2<=x1 or y2<=y1: return 0.0
-            inter = (x2-x1)*(y2-y1)
-            union = (b1[2]-b1[0])*(b1[3]-b1[1]) + (b2[2]-b2[0])*(b2[3]-b2[1]) - inter
-            return inter/union if union>0 else 0.0
+
+        def iou(box1, box2):
+            inter_x1 = max(box1[0], box2[0])
+            inter_y1 = max(box1[1], box2[1])
+            inter_x2 = min(box1[2] - 1, box2[2] - 1)
+            inter_y2 = min(box1[3] - 1, box2[3] - 1)
+            if inter_x1 < inter_x2 and inter_y1 < inter_y2:
+                inter = (inter_x2 - inter_x1 + 1) * (inter_y2 - inter_y1 + 1)
+            else:
+                inter = 0
+            union = ((box1[2] - box1[0]) * (box1[3] - box1[1]) +
+                     (box2[2] - box2[0]) * (box2[3] - box2[1]) -
+                     inter)
+            return float(inter) / union if union > 0 else 0.0
 
         rewards = []
-        for comp, sol in zip(completions, solution):
-            # parse GT
-            m = re.search(r'<answer>(.*?)</answer>', sol, re.DOTALL)
-            gt = json.loads(m.group(1))["boxes"][0] if m else None
-            # parse pred
-            m2= re.search(r'<answer>(.*?)</answer>', comp[0]["content"], re.DOTALL)
-            pr = json.loads(m2.group(1))["boxes"][0] if m2 else None
-            rewards.append(iou(pr,gt) if pr and gt else 0.0)
+        for completion, sol in zip(completions, solution):
+            # extract ground truth box
+            sol_match = re.search(r'<answer>(.*?)</answer>', sol, re.DOTALL)
+            gt_box = None
+            if sol_match:
+                data = json.loads(sol_match.group(1).strip())
+                if isinstance(data, dict) and "boxes" in data:
+                    boxes = data["boxes"]
+                    if boxes:
+                        gt_box = boxes[0]
+                elif isinstance(data, list) and len(data) == 4:
+                    gt_box = data
+
+            # extract predicted box
+            content = completion[0]["content"]
+            pred_match = re.search(r'<answer>(.*?)</answer>', content, re.DOTALL)
+            pred_box = None
+            if pred_match:
+                data = json.loads(pred_match.group(1).strip())
+                if isinstance(data, dict) and "boxes" in data:
+                    pboxes = data["boxes"]
+                    if pboxes:
+                        pred_box = pboxes[0]
+                elif isinstance(data, list) and len(data) == 4:
+                    pred_box = data
+
+            # compute IoU if both present
+            if gt_box is not None and pred_box is not None:
+                rewards.append(iou(pred_box, gt_box))
+            else:
+                rewards.append(0.0)
+
         return rewards
         
     
