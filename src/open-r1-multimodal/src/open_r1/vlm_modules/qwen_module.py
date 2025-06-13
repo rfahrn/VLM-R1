@@ -233,16 +233,17 @@ class Qwen2VLModule(VLMBaseModule):
         """
         # compute each vector
         iou_rs    = Qwen2VLModule.iou_reward_new(completions, solution, **kwargs)
-        acc_rs    = Qwen2VLModule.medical_accuracy_reward(completions, solution, **kwargs)
+        # acc_rs    = Qwen2VLModule.medical_accuracy_reward(completions, solution, **kwargs)
+        iou_rs2 = TODO # for exampel {"id": "mscXR-train_1", "image": "MIMIC-CXR-JPG/files/p17/p17411825/s54223967/a8e5ebec-d70fa00f-d0fd6e3e-ede9aecf-0f955fd3.jpg", "conversations": [{"from": "human", "value": "<image>Find the region corresponding to: small bilateral pleural effusions"}, {"from": "gpt", "value": "You'll find it at [0.62, 0.45, 0.92, 0.56] and [0.15, 0.46, 0.4, 0.54] in the CXR."}]}
         fmt_rs    = Qwen2VLModule.format_reward_rec(completions, **kwargs)
 
         # weights
-        w_iou, w_acc, w_fmt = 0.5, 0.3, 0.2
+        w_iou, w_fmt = 0.5, 0.3, 0.2
 
         # combine
         return [
-            w_iou * i + w_acc * a + w_fmt * f
-            for i, a, f in zip(iou_rs, acc_rs, fmt_rs)
+            w_iou * i + iou_rs2 * a + w_fmt * f
+            for i, i2, f in zip(iou_rs, iou_rs2, fmt_rs)
         ]
 
 
