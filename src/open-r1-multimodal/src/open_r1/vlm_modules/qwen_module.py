@@ -157,19 +157,70 @@ class Qwen2VLModule(VLMBaseModule):
                         f.write(f"Solution: {sol}\n") 
         return rewards
         
- @staticmethod
- def medical_accuracy_reward(completions, solution, **kwargs):
-     import re, json
-     rewards = []
-     for completion, sol in zip(completions, solution):
-         ground_truth = sol.strip().lower()        # strip tags, parse JSON, then lowercase the label
-         payload = json.loads(re.search(r'<answer>(.*)</answer>', sol, re.DOTALL).group(1))
-         ground_truth = payload["label"].strip().lower()
-         content = completion[0]["content"]
-         model_match = re.search(r'<answer>(.*?)</answer>', content, re.DOTALL)
-         model_answer = model_match.group(1).strip().lower() if model_match else ""
-         rewards.append(1.0 if model_answer == ground_truth else 0.0)
-     return rewards
+     @staticmethod
+     def medical_accuracy_reward(completions, solution, **kwargs):
+         import re, json
+         rewards = []
+         for completion, sol in zip(completions, solution):
+             ground_truth = sol.strip().lower()        # strip tags, parse JSON, then lowercase the label
+             payload = json.loads(re.search(r'<answer>(.*)</answer>', sol, re.DOTALL).group(1))
+             ground_truth = payload["label"].strip().lower()
+             content = completion[0]["content"]
+             model_match = re.search(r'<answer>(.*?)</answer>', content, re.DOTALL)
+             model_answer = model_match.group(1).strip().lower() if model_match else ""
+             rewards.append(1.0 if model_answer == ground_truth else 0.0)
+         return rewards
+    
+    @staticmethod
+    def iou_reward_new(completions, solution, **kwargs):
+        import re, json
+        from datetime import datetime
+    
+        # standard IoU helper
+        def iou(box1, box2):
+            inter_x1 = max(box1[0], box2[0])
+            inter_y1 = max(box1[1], box2[1])
+            inter_x2 = min(box1[2] - 1, box2[2] - 1)
+            inter_y2 = min(box1[3] - 1, box2[3] - 1)
+            if inter_x1 < inter_x2 and inter_y1 < inter_y2:
+                inter = (inter_x2 - inter_x1 + 1) * (inter_y2 - inter_y1 + 1)
+            else:
+                inter = 0
+            union = ((box1[2] - box1[0]) * (box1[3] - box1[1]) +
+                     (box2[2] - box2[0]) * (box2[3] - box2[1]) -
+                     inter)
+            return float(inter) / union if union > 0 else 0.0
+    
+        rewards = []
+        for completion, sol in zip(completions, solution):
+            # 1) extract ground-truth payload from <answer>…</answer>
+            sol_match = re.search(r'<answer>(.*?)</answer>', sol, re.DOTALL)
+            gt_box = None
+            if sol_match:
+                gt_payload = json.loads(sol_match.group(1).strip())
+                boxes = gt_payload.get("boxes", [])
+                if boxes:
+                    gt_box = boxes[0]
+    
+            # 2) extract model prediction payload from its <answer>…</answer>
+            content = completion[0]["content"]
+            pred_match = re.search(r'<answer>(.*?)</answer>', content, re.DOTALL)
+            pred_box = None
+            if pred_match:
+                pred_payload = json.loads(pred_match.group(1).strip())
+                pboxes = pred_payload.get("boxes", [])
+                if pboxes:
+                    pred_box = pboxes[0]
+    
+            # 3) compute IoU if both exist
+            if gt_box is not None and pred_box is not None:
+                rewards.append(iou(pred_box, gt_box))
+            else:
+                # if either is missing, score is 0
+                rewards.append(0.0)
+    
+        return rewards
+    
 
 
     @staticmethod 
@@ -181,7 +232,7 @@ class Qwen2VLModule(VLMBaseModule):
           - format correctness (0 or 1)
         """
         # compute each vector
-        iou_rs    = Qwen2VLModule.iou_reward(completions, solution, **kwargs)
+        iou_rs    = Qwen2VLModule.iou_reward_new(completions, solution, **kwargs)
         acc_rs    = Qwen2VLModule.medical_accuracy_reward(completions, solution, **kwargs)
         fmt_rs    = Qwen2VLModule.format_reward_rec(completions, **kwargs)
 
