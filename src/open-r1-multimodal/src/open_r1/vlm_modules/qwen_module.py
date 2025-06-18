@@ -223,11 +223,11 @@ class Qwen2VLModule(VLMBaseModule):
 
     
 
-    @staticmethod 
-    def combined_reward(completions, solution, **kwargs):
-        ious = Qwen2VLModule.iou_reward_new(completions, solution, **kwargs)
-        fmts = Qwen2VLModule.format_reward_rec(completions, **kwargs)
-        return [0.5*i + 0.5*f for i,f in zip(ious, fmts)]
+    #@staticmethod 
+    #def combined_reward(completions, solution, **kwargs):
+     #   ious = Qwen2VLModule.iou_reward_new(completions, solution, **kwargs)
+      #  fmts = Qwen2VLModule.format_reward_rec(completions, **kwargs)
+       # return [0.5*i + 0.5*f for i,f in zip(ious, fmts)]
         
     
         """
@@ -248,23 +248,140 @@ class Qwen2VLModule(VLMBaseModule):
             else:
                 raise ValueError(f"Unsupported reward function: {func}")"""
 
+    @staticmethod
+    def parse_boxes_from_text(text):
+        """
+        Parses a string containing multiple boxes in either JSON or 
+        simple list-of-lists format.
+        """
+        import json, re
+        # Try JSON
+        try:
+            data = json.loads(text)
+            if isinstance(data, list):
+                # list of boxes
+                return [list(map(float, box)) for box in data if isinstance(box, (list, tuple)) and len(box) == 4]
+            elif isinstance(data, dict) and 'boxes' in data:
+                return [list(map(float, box)) for box in data['boxes']]
+        except Exception:
+            # Fallback: match all [n, n, n, n] patterns
+            matches = re.findall(r"\[([\d\.eE+-]+),\s*([\d\.eE+-]+),\s*([\d\.eE+-]+),\s*([\d\.eE+-]+)\]", text)
+            return [list(map(float, m)) for m in matches]
+        return []
+    
+    @staticmethod
+    def mean_max_iou_reward(completions, solution, **kwargs):
+        # Returns: for each sample, mean(best IoU GT->Pred), mean(best IoU Pred->GT), mean of both, and list of all IoUs
+        import numpy as np
+        import re
+    
+        answer_pat = re.compile(r'<answer>(.*?)</answer>', re.DOTALL)
+        results = []
+    
+        for comp, sol in zip(completions, solution):
+            comp_text = comp[0].get("content", "")
+            pred_match = answer_pat.search(comp_text)
+            sol_match = answer_pat.search(sol or "")
+    
+            pred_boxes = Qwen2VLModule.parse_boxes_from_text(pred_match.group(1).strip()) if pred_match else []
+            gt_boxes   = Qwen2VLModule.parse_boxes_from_text(sol_match.group(1).strip()) if sol_match else []
+    
+            if not pred_boxes or not gt_boxes:
+                results.append({
+                    "mean_iou_gt_to_pred": 0.0,
+                    "mean_iou_pred_to_gt": 0.0,
+                    "mean_iou": 0.0,
+                    "all_ious": [],
+                    "n_pred": len(pred_boxes),
+                    "n_gt": len(gt_boxes),
+                })
+                continue
+    
+            # Compute pairwise IoU matrix
+            def iou(box1, box2):
+                inter_x1 = max(box1[0], box2[0])
+                inter_y1 = max(box1[1], box2[1])
+                inter_x2 = min(box1[2], box2[2])
+                inter_y2 = min(box1[3], box2[3])
+                inter_area = max(0, inter_x2 - inter_x1) * max(0, inter_y2 - inter_y1)
+                box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+                box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
+                union = box1_area + box2_area - inter_area
+                return inter_area / union if union > 0 else 0.0
+    
+            iou_matrix = np.zeros((len(gt_boxes), len(pred_boxes)))
+            for i, gt in enumerate(gt_boxes):
+                for j, pred in enumerate(pred_boxes):
+                    iou_matrix[i, j] = iou(gt, pred)
+    
+            # mean of best IoU for each GT (coverage), mean of best IoU for each pred (precision)
+            mean_iou_gt_to_pred = np.mean(iou_matrix.max(axis=1))
+            mean_iou_pred_to_gt = np.mean(iou_matrix.max(axis=0))
+            mean_iou = (mean_iou_gt_to_pred + mean_iou_pred_to_gt) / 2
+            results.append({
+                "mean_iou_gt_to_pred": float(mean_iou_gt_to_pred),
+                "mean_iou_pred_to_gt": float(mean_iou_pred_to_gt),
+                "mean_iou": float(mean_iou),
+                "all_ious": iou_matrix.flatten().tolist(),
+                "n_pred": len(pred_boxes),
+                "n_gt": len(gt_boxes),
+            })
+        return results
 
     @staticmethod
+    def combined_reward(completions, solution, **kwargs):
+        iou_stats = Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+        fmts = Qwen2VLModule.format_reward_rec(completions, **kwargs)
+        # Choose what to log/return! You can add more stats as needed.
+        # Example: mean_iou + format, or return a tuple/list/dict for plotting
+        combined = [0.5*stat['mean_iou'] + 0.5*f for stat, f in zip(iou_stats, fmts)]
+        # Optionally, log all sub-rewards for multi-panel analysis
+        return {
+            "combined": combined,
+            "mean_iou": [stat['mean_iou'] for stat in iou_stats],
+            "mean_iou_gt_to_pred": [stat['mean_iou_gt_to_pred'] for stat in iou_stats],
+            "mean_iou_pred_to_gt": [stat['mean_iou_pred_to_gt'] for stat in iou_stats],
+            "format": fmts,
+            "n_pred": [stat['n_pred'] for stat in iou_stats],
+            "n_gt": [stat['n_gt'] for stat in iou_stats],
+        }
+    
+    
+    @staticmethod
     def select_reward_func(func: str, task_type: str):
+        if task_type != "rec":
+            raise ValueError(f"Unsupported reward function for task type: {task_type}")
+    
+        # Main single-metric reward functions
         if func == "accuracy":
-            match task_type:
-                case "rec":
-                    return Qwen2VLModule.iou_reward
-                case _:
-                    raise ValueError(f"Unsupported reward function: {func}")
+            return Qwen2VLModule.iou_reward
         elif func == "format":
-            match task_type:
-                case "rec":
-                    return Qwen2VLModule.format_reward_rec
-                case _:
-                    raise ValueError(f"Unsupported reward function: {func}")
+            return Qwen2VLModule.format_reward_rec
         elif func == "combined":
             return Qwen2VLModule.combined_reward
+    
+        # Multi-metric accessors (all use mean_max_iou_reward internally)
+        elif func == "mean_iou":
+            return lambda completions, solution, **kwargs: [
+                stat["mean_iou"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+            ]
+        elif func == "mean_iou_gt_to_pred":
+            return lambda completions, solution, **kwargs: [
+                stat["mean_iou_gt_to_pred"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+            ]
+        elif func == "mean_iou_pred_to_gt":
+            return lambda completions, solution, **kwargs: [
+                stat["mean_iou_pred_to_gt"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+            ]
+        elif func == "n_pred":
+            return lambda completions, solution, **kwargs: [
+                stat["n_pred"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+            ]
+        elif func == "n_gt":
+            return lambda completions, solution, **kwargs: [
+                stat["n_gt"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+            ]
         else:
             raise ValueError(f"Unsupported reward function: {func}")
+
 
