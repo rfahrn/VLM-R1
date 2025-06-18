@@ -80,11 +80,38 @@ class Qwen2VLModule(VLMBaseModule):
                 )
                 return SYSTEM_PROMPT + '\n' + "{Question}"
             case _:
-                return "{Question} First output the thinking process in <think> </think> tags and then output the final answer in <answer> </answer> tags."
-            
+                return "{Question} First output the thinking process in <think> </think> tags and then output the final answer in <answer> </answer> tags.
+
     @staticmethod
     def format_reward_rec(completions, **kwargs):
-        """Check if the Qwen model output matches a specific format."""
+        import re, json
+        answer_pat = re.compile(r'<answer>(.*?)</answer>', re.DOTALL)
+        rewards = []
+        for comp in completions:
+            content = comp[0]["content"]
+            m = answer_pat.search(content)
+            if not m:
+                rewards.append(0.0)
+                continue
+            txt = m.group(1).strip()
+            # Try JSON parse
+            try:
+                data = json.loads(txt)
+                # Accept either a list of 4 numbers or a dict with "boxes"
+                if (isinstance(data, list) and len(data) == 4) or \
+                   (isinstance(data, dict) and "boxes" in data and len(data["boxes"][0]) == 4):
+                    rewards.append(1.0)
+                else:
+                    rewards.append(0.0)
+            except Exception:
+                rewards.append(0.0)
+        return rewards
+
+
+    """
+    @staticmethod
+    def format_reward_rec(completions, **kwargs):
+        Check if the Qwen model output matches a specific format.
         import re
         import os
         from datetime import datetime
@@ -100,7 +127,7 @@ class Qwen2VLModule(VLMBaseModule):
                 for content, match in zip(completion_contents, matches):
                     f.write(f"Content: {content}\n")
                     f.write(f"Has format: {bool(match)}\n")
-        return [1.0 if match else 0.0 for match in matches]
+        return [1.0 if match else 0.0 for match in matches]"""
     
     @staticmethod
     def iou_reward(completions, solution, **kwargs):
