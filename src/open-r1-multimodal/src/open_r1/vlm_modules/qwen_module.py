@@ -80,7 +80,7 @@ class Qwen2VLModule(VLMBaseModule):
                 )
                 return SYSTEM_PROMPT + '\n' + "{Question}"
             case _:
-                return "{Question} First output the thinking process in <think> </think> tags and then output the final answer in <answer> </answer> tags.
+                return "{Question} First output the thinking process in <think> </think> tags and then output the final answer in <answer> </answer> tags."
 
     @staticmethod
     def format_reward_rec(completions, **kwargs):
