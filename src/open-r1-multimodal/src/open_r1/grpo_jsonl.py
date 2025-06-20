@@ -19,7 +19,7 @@ from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Optional
 from babel.numbers import parse_decimal
-from utils.math import compute_score
+#from utils.math import compute_score
 from datasets import load_dataset, load_from_disk
 from transformers import Qwen2VLForConditionalGeneration
 
@@ -751,9 +751,10 @@ def numeric_reward(content, sol, **kwargs):
     except:
         return None
 def math_reward(content, sol, **kwargs):
+    """Simplified math reward for bbox detection - just string comparison"""
     content = clean_text(content)
     sol = clean_text(sol)
-    return compute_score(content, sol)
+    return 1.0 if content == sol else 0.0
 def clean_text(text, exclue_chars=['\n', '\r']):
     # Extract content between <answer> and </answer> if present
     answer_matches = re.findall(r'<answer>(.*?)</answer>', text, re.DOTALL)
@@ -780,7 +781,7 @@ def all_match_reward(content, sol, **kwargs):
 
 def default_accuracy_reward(content, sol, **kwargs):
     reward = 0.0
-        # Extract answer from solution if it has think/answer tags
+    # Extract answer from solution if it has think/answer tags
     sol_match = re.search(r'<answer>(.*?)</answer>', sol)
     ground_truth = sol_match.group(1).strip() if sol_match else sol.strip()
     
