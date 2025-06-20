@@ -359,19 +359,39 @@ class Qwen2VLModule(VLMBaseModule):
     def combined_reward(completions, solution, **kwargs):
         iou_stats = Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
         fmts = Qwen2VLModule.format_reward_rec(completions, **kwargs)
-        # Choose what to log/return! You can add more stats as needed.
-        # Example: mean_iou + format, or return a tuple/list/dict for plotting
+        
+        # Return only the combined scalar values - the trainer expects a list of numbers
         combined = [0.5*stat['mean_iou'] + 0.5*f for stat, f in zip(iou_stats, fmts)]
-        # Optionally, log all sub-rewards for multi-panel analysis
-        return {
-            "combined": combined,
-            "mean_iou": [stat['mean_iou'] for stat in iou_stats],
-            "mean_iou_gt_to_pred": [stat['mean_iou_gt_to_pred'] for stat in iou_stats],
-            "mean_iou_pred_to_gt": [stat['mean_iou_pred_to_gt'] for stat in iou_stats],
-            "format": fmts,
-            "n_pred": [stat['n_pred'] for stat in iou_stats],
-            "n_gt": [stat['n_gt'] for stat in iou_stats],
-        }
+        
+        # Optional: Log the detailed stats for debugging (if DEBUG_MODE is enabled)
+        if os.getenv("DEBUG_MODE") == "true":
+            import os
+            from datetime import datetime
+            log_path = os.getenv("LOG_PATH", "debug.log")
+            current_time = datetime.now().strftime("%d-%H-%M-%S-%f")
+            
+            with open(log_path.replace(".txt", "_combined_rewards.txt"), "a", encoding='utf-8') as f:
+                f.write(f"------------- {current_time} Combined Reward Details -------------\n")
+                for i, (stat, fmt, comb) in enumerate(zip(iou_stats, fmts, combined)):
+                    f.write(f"Sample {i}: mean_iou={stat['mean_iou']:.3f}, format={fmt:.3f}, combined={comb:.3f}\n")
+                    f.write(f"  IoU details: gt_to_pred={stat['mean_iou_gt_to_pred']:.3f}, pred_to_gt={stat['mean_iou_pred_to_gt']:.3f}\n")
+                    f.write(f"  Counts: n_pred={stat['n_pred']}, n_gt={stat['n_gt']}\n")
+                f.write("\n")
+        
+        return combined
+
+
+    # Alternative approach: Create separate reward functions for individual metrics
+    @staticmethod
+    def iou_only_reward(completions, solution, **kwargs):
+        """Return only IoU rewards for individual analysis"""
+        iou_stats = Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+        return [stat['mean_iou'] for stat in iou_stats]
+    
+    @staticmethod
+    def format_only_reward(completions, solution, **kwargs):
+        """Return only format rewards for individual analysis"""
+        return Qwen2VLModule.format_reward_rec(completions, **kwargs)
     
     
     @staticmethod
@@ -386,29 +406,33 @@ class Qwen2VLModule(VLMBaseModule):
             return Qwen2VLModule.format_reward_rec
         elif func == "combined":
             return Qwen2VLModule.combined_reward
+        elif func == "iou_only":  # New: for individual IoU analysis
+            return Qwen2VLModule.iou_only_reward
+        elif func == "format_only":  # New: for individual format analysis
+            return Qwen2VLModule.format_only_reward
     
         # Multi-metric accessors (all use mean_max_iou_reward internally)
         elif func == "mean_iou":
-            return lambda completions, solution, **kwargs: [
-                stat["mean_iou"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
-            ]
-        elif func == "mean_iou_gt_to_pred":
-            return lambda completions, solution, **kwargs: [
-                stat["mean_iou_gt_to_pred"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
-            ]
-        elif func == "mean_iou_pred_to_gt":
-            return lambda completions, solution, **kwargs: [
-                stat["mean_iou_pred_to_gt"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
-            ]
-        elif func == "n_pred":
-            return lambda completions, solution, **kwargs: [
-                stat["n_pred"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
-            ]
-        elif func == "n_gt":
-            return lambda completions, solution, **kwargs: [
-                stat["n_gt"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
-            ]
-        else:
-            raise ValueError(f"Unsupported reward function: {func}")
+                return lambda completions, solution, **kwargs: [
+                    stat["mean_iou"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+                ]
+            elif func == "mean_iou_gt_to_pred":
+                return lambda completions, solution, **kwargs: [
+                    stat["mean_iou_gt_to_pred"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+                ]
+            elif func == "mean_iou_pred_to_gt":
+                return lambda completions, solution, **kwargs: [
+                    stat["mean_iou_pred_to_gt"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+                ]
+            elif func == "n_pred":
+                return lambda completions, solution, **kwargs: [
+                    stat["n_pred"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+                ]
+            elif func == "n_gt":
+                return lambda completions, solution, **kwargs: [
+                    stat["n_gt"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+                ]
+            else:
+                raise ValueError(f"Unsupported reward function: {func}")
 
 
