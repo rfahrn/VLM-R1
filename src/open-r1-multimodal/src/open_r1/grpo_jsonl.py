@@ -23,7 +23,7 @@ from utils.math import compute_score
 from datasets import load_dataset, load_from_disk
 from transformers import Qwen2VLForConditionalGeneration
 
-from math_verify import parse, verify
+#from math_verify import parse, verify
 from open_r1.trainer import VLMGRPOTrainer, GRPOConfig
 from trl import ModelConfig, ScriptArguments, TrlParser, get_peft_config
 import PIL
