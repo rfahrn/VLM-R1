@@ -416,23 +416,23 @@ class Qwen2VLModule(VLMBaseModule):
                 return lambda completions, solution, **kwargs: [
                     stat["mean_iou"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
                 ]
-            elif func == "mean_iou_gt_to_pred":
-                return lambda completions, solution, **kwargs: [
-                    stat["mean_iou_gt_to_pred"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
-                ]
-            elif func == "mean_iou_pred_to_gt":
-                return lambda completions, solution, **kwargs: [
-                    stat["mean_iou_pred_to_gt"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
-                ]
-            elif func == "n_pred":
-                return lambda completions, solution, **kwargs: [
-                    stat["n_pred"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
-                ]
-            elif func == "n_gt":
-                return lambda completions, solution, **kwargs: [
-                    stat["n_gt"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
-                ]
-            else:
-                raise ValueError(f"Unsupported reward function: {func}")
+        elif func == "mean_iou_gt_to_pred":
+            return lambda completions, solution, **kwargs: [
+                stat["mean_iou_gt_to_pred"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+            ]
+        elif func == "mean_iou_pred_to_gt":
+            return lambda completions, solution, **kwargs: [
+                stat["mean_iou_pred_to_gt"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+            ]
+        elif func == "n_pred":
+            return lambda completions, solution, **kwargs: [
+                stat["n_pred"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+            ]
+        elif func == "n_gt":
+            return lambda completions, solution, **kwargs: [
+                stat["n_gt"] for stat in Qwen2VLModule.mean_max_iou_reward(completions, solution, **kwargs)
+            ]
+        else:
+            raise ValueError(f"Unsupported reward function: {func}")
 
 
