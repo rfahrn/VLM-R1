@@ -94,4 +94,4 @@ torchrun \
     --dataset_name this_is_not_used
   2>&1 | tee "${LOG_PATH}"
 
-echo "GRPO LoRA training completed for ${EXP_NAME} (Single GPU)"
+echo "GRPO LoRA training completed for ${EXP_NAME}"
