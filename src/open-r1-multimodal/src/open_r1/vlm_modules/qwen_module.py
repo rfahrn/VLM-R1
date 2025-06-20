@@ -363,21 +363,6 @@ class Qwen2VLModule(VLMBaseModule):
         # Return only the combined scalar values - the trainer expects a list of numbers
         combined = [0.5*stat['mean_iou'] + 0.5*f for stat, f in zip(iou_stats, fmts)]
         
-        # Optional: Log the detailed stats for debugging (if DEBUG_MODE is enabled)
-        if os.getenv("DEBUG_MODE") == "true":
-            import os
-            from datetime import datetime
-            log_path = os.getenv("LOG_PATH", "debug.log")
-            current_time = datetime.now().strftime("%d-%H-%M-%S-%f")
-            
-            with open(log_path.replace(".txt", "_combined_rewards.txt"), "a", encoding='utf-8') as f:
-                f.write(f"------------- {current_time} Combined Reward Details -------------\n")
-                for i, (stat, fmt, comb) in enumerate(zip(iou_stats, fmts, combined)):
-                    f.write(f"Sample {i}: mean_iou={stat['mean_iou']:.3f}, format={fmt:.3f}, combined={comb:.3f}\n")
-                    f.write(f"  IoU details: gt_to_pred={stat['mean_iou_gt_to_pred']:.3f}, pred_to_gt={stat['mean_iou_pred_to_gt']:.3f}\n")
-                    f.write(f"  Counts: n_pred={stat['n_pred']}, n_gt={stat['n_gt']}\n")
-                f.write("\n")
-        
         return combined
 
 
