@@ -5,7 +5,7 @@
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:rtx4090:3
 #SBATCH --cpus-per-task=8
-#SBATCH --mem-per-gpu=24G
+#SBATCH --mem-per-cpu=24G
 #SBATCH --time=12:00:00
 
 set -e  # Stop on errors
