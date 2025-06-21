@@ -21,8 +21,8 @@ conda activate rebecka
 
 # Configuration
 PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
-export REPO_HOME="${PROJECT_ROOT}"
-echo REPO_HOME
+export REPO_HOME="/cluster/customapps/medinfmk/fahrnr/VLM-R1"
+
 
 
 # Use HOME directory for writable outputs
