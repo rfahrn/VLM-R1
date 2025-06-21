@@ -1,12 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #SBATCH --job-name=cxr_grpo
 #SBATCH --output=/cluster/home/fahrnr/slurm_logs/%x_%j.out
 #SBATCH --error=/cluster/home/fahrnr/slurm_logs/%x_%j.err
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:rtx4090:3
 #SBATCH --cpus-per-task=8
-#SBATCH --mem-per-cpu=24G
-#SBATCH --time=12:00:00
+#SBATCH --mem-per-gpu=24G
+#SBATCH --time=14:00:00
+#SBATCH --chdir=/cluster/customapps/medinfmk/fahrnr/VLM-R1
+
+# or, if you don't use --chdir, add explicitly:
+cd /cluster/customapps/medinfmk/fahrnr/VLM-R1
 
 set -e  # Stop on errors
 
