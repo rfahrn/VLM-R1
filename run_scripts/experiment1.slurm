@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=cxr_grpo
-#SBATCH --output=%x_%j.out
-#SBATCH --error=%x_%j.err
+#SBATCH --output=$HOME/slurm_logs/%x_%j.out
+#SBATCH --error=$HOME/slurm_logs/%x_%j.err
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:rtx4090:3
 #SBATCH --cpus-per-task=8
