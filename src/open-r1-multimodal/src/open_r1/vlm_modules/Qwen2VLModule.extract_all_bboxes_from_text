@@ -231,6 +231,69 @@ class Qwen2VLModule(VLMBaseModule):
     # ========================================================================
 
     @staticmethod
+    def _iou(a, b):
+        x0, y0 = max(a[0], b[0]), max(a[1], b[1])
+        x1, y1 = min(a[2], b[2]), min(a[3], b[3])
+        inter  = max(0, x1-x0) * max(0, y1-y0)
+        if inter == 0: return 0.0
+        area_a = (a[2]-a[0]) * (a[3]-a[1])
+        area_b = (b[2]-b[0]) * (b[3]-b[1])
+        return inter / (area_a + area_b - inter)
+
+    @staticmethod
+    def _match_boxes(pred, gt):
+        """Greedy one-to-one matching with highest IoU."""
+        pairs, used = [], set()
+        for i, p in enumerate(pred):
+            best, best_iou = None, 0.0
+            for j, g in enumerate(gt):
+                if j in used: continue
+                iou = Qwen2VLModule._iou(p, g)
+                if iou > best_iou:
+                    best_iou, best = iou, j
+            if best is not None:
+                pairs.append((i, best, best_iou))
+                used.add(best)
+        return pairs
+
+    @staticmethod
+    def continuous_iou_fbeta_reward(pred_bboxes, gt_bboxes, alpha=0.5):
+        """
+        Continuous reward  ∈ [0,1]
+            R = mean(IoU) × Fβ  with  β = alpha / (1-alpha)
+        mean(IoU) – localisation quality  
+        Fβ        – balance precision & recall (β=1 when alpha=0.5)
+        """
+        if not pred_bboxes and not gt_bboxes:
+            return 1.0
+        if not pred_bboxes or not gt_bboxes:
+            return 0.0
+        matches   = Qwen2VLModule._match_boxes(pred_bboxes, gt_bboxes)
+        if not matches:
+            return 0.0
+        mean_iou  = sum(m[2] for m in matches) / len(matches)
+        tp        = len(matches)
+        precision = tp / len(pred_bboxes)
+        recall    = tp / len(gt_bboxes)
+        beta_sq   = (alpha / (1-alpha))**2
+        f_beta    = (1+beta_sq)*precision*recall / (beta_sq*precision + recall + 1e-9)
+        return mean_iou * f_beta
+
+    @staticmethod
+    def iou_fbeta_reward_batch(completions, solution, **kwargs):
+        # alpha can be set as desired, or passed via kwargs
+        alpha = kwargs.get("alpha", 0.5)
+        rewards = []
+        for content, sol in zip([c[0]["content"] for c in completions], solution):
+            pred_answer = Qwen2VLModule.extract_answer_content(content)
+            gt_answer   = Qwen2VLModule.extract_answer_content(sol)
+            pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(pred_answer)
+            gt_bboxes   = Qwen2VLModule.extract_all_bboxes_from_text(gt_answer)
+            reward = Qwen2VLModule.continuous_iou_fbeta_reward(pred_bboxes, gt_bboxes, alpha=alpha)
+            rewards.append(reward)
+        return rewards
+    
+    @staticmethod
     def iou_reward(completions, solution, **kwargs):
         """IoU-based accuracy reward (your main metric)."""
         contents = [completion[0]["content"] for completion in completions]
@@ -365,6 +428,7 @@ class Qwen2VLModule(VLMBaseModule):
             return Qwen2VLModule.map_only_reward
         elif func == "format_only":
             return Qwen2VLModule.format_only_reward
-        
+        elif func == "iou_fbeta":
+            return Qwen2VLModule.iou_fbeta_reward_batch
         else:
             raise ValueError(f"Unsupported reward function: {func}")
