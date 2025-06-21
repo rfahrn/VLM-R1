@@ -8,9 +8,10 @@
 #SBATCH --mem-per-gpu=24G
 #SBATCH --time=14:00:00
 
-# =============================================================================
-# CXR GRPO Training with SLURM
-# =============================================================================
+set -e  # Stop on errors
+
+# Ensure slurm_logs directory exists
+mkdir -p /cluster/home/fahrnr/slurm_logs
 
 # Load environment
 source ~/.bashrc
@@ -20,7 +21,7 @@ conda activate rebecka
 PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 export REPO_HOME="${PROJECT_ROOT}"
 
-# FIXED: Use HOME directory for writable outputs
+# Use HOME directory for writable outputs
 export OUTPUT_BASE="${HOME}/vlm_experiments"
 export RUNS_BASE="${HOME}/runs"
 
