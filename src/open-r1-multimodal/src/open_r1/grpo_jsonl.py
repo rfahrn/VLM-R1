@@ -40,8 +40,8 @@ from openai import OpenAI
 logger = logging.get_logger(__name__)
 
 client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY", "sk-proj-1234567890"),
-    base_url=os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+    api_key=os.getenv("OPENAI_API_KEY", "sk-rc-smD3g0aTmXimRoLw6JKkUg"),
+    base_url=os.getenv("OPENAI_API_BASE", "https://api.swissai.cscs.ch/v1")
 )
 
 from open_r1.qwen2_5vl_monkey_patch import monkey_patch_qwen2_5vl_flash_attn, monkey_patch_qwen2_5vl_forward, monkey_patch_torch_load
