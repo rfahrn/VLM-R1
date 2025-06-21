@@ -75,7 +75,7 @@ echo "=== Training Starting ==="
 nvidia-smi
 
 # Change to source directory
-cd ${REPO_HOME}/src/open-r1-multimodal
+cd ${REPO_HOME}
 
 # Launch training
 torchrun \
@@ -84,7 +84,7 @@ torchrun \
   --node_rank=0 \
   --master_addr=127.0.0.1 \
   --master_port=12349 \
-  src/open_r1/grpo_jsonl.py \
+  src/open-r1-multimodal/src/open_r1/grpo_jsonl.py \
     --use_vllm False \
     --output_dir ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME} \
     --resume_from_checkpoint True \
