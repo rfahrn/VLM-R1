@@ -22,6 +22,8 @@ conda activate rebecka
 # Configuration
 PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 export REPO_HOME="${PROJECT_ROOT}"
+echo REPO_HOME
+
 
 # Use HOME directory for writable outputs
 export OUTPUT_BASE="${HOME}/vlm_experiments"
