@@ -12,8 +12,6 @@
 # or, if you don't use --chdir, add explicitly:
 cd /cluster/customapps/medinfmk/fahrnr/VLM-R1
 
-set -e  # Stop on errors
-
 # Ensure slurm_logs directory exists
 mkdir -p /cluster/home/fahrnr/slurm_logs
 
