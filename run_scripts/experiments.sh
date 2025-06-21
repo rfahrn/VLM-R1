@@ -8,17 +8,26 @@
 #SBATCH --mem-per-gpu=24G
 #SBATCH --time=14:00:00
 
-# =============================================================================
-# CXR GRPO Training with SLURM
-# =============================================================================
+set -e  # Stop script on any error
 
-# Load environment
-source ~/.bashrc
-conda activate rebecka
+# Debugging info
+echo "Current working dir: $(pwd)"
+echo "Running as user: $(whoami)"
+echo "SLURM job id: $SLURM_JOB_ID"
+echo "SLURM node list: $SLURM_JOB_NODELIST"
+echo "GPUs: $SLURM_GPUS_ON_NODE"
 
 # Configuration
 PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 export REPO_HOME="${PROJECT_ROOT}"
+
+echo "Conda environments:"
+conda info --envs
+echo "Activating conda..."
+source ~/.bashrc
+conda activate rebecka
+which python
+python --version
 
 # FIXED: Use HOME directory for writable outputs
 export OUTPUT_BASE="${HOME}/vlm_experiments"
