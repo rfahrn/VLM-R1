@@ -20,6 +20,10 @@ conda activate rebecka
 PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 export REPO_HOME="${PROJECT_ROOT}"
 
+# FIXED: Use HOME directory for writable outputs
+export OUTPUT_BASE="${HOME}/vlm_experiments"
+export RUNS_BASE="${HOME}/runs"
+
 # Your CXR data
 data_paths="${HOME}/train_scxr2.jsonl"
 image_folders="/cluster/dataset/medinfmk/public_radiology_repo"
@@ -42,10 +46,15 @@ EXP_NAME="CXR_iou_format_test"
 export DEBUG_MODE="true"
 export WANDB_DISABLED=true
 
-# Setup directories
-cd ${REPO_HOME}/src/open-r1-multimodal
-mkdir -p ${REPO_HOME}/runs/${EXP_NAME}/log
-export LOG_PATH="${REPO_HOME}/runs/${EXP_NAME}/log/debug_log.$(date +%Y-%m-%d-%H-%M-%S).txt"
+# Setup directories in writable locations
+mkdir -p ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}
+mkdir -p ${RUNS_BASE}/${EXP_NAME}/log
+
+# Setup directories in writable locations
+mkdir -p ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}
+mkdir -p ${RUNS_BASE}/${EXP_NAME}/log
+
+export LOG_PATH="${RUNS_BASE}/${EXP_NAME}/log/debug_log.$(date +%Y-%m-%d-%H-%M-%S).txt"
 
 echo "=== CXR GRPO Training Start ==="
 echo "Job ID: $SLURM_JOB_ID"
@@ -62,6 +71,9 @@ echo "=== Training Starting ==="
 # Check GPU availability
 nvidia-smi
 
+# Change to source directory
+cd ${REPO_HOME}/src/open-r1-multimodal
+
 # Launch training
 torchrun \
   --nproc_per_node=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l) \
@@ -71,7 +83,7 @@ torchrun \
   --master_port=12349 \
   src/open_r1/grpo_jsonl.py \
     --use_vllm False \
-    --output_dir ${REPO_HOME}/checkpoints/rl/${EXP_NAME} \
+    --output_dir ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME} \
     --resume_from_checkpoint True \
     --model_name_or_path $model_path \
     --data_file_paths $data_paths \
@@ -105,6 +117,6 @@ torchrun \
   2>&1 | tee "${LOG_PATH}"
 
 echo "=== Training Completed ==="
-echo "Model saved to: ${REPO_HOME}/checkpoints/rl/${EXP_NAME}"
+echo "Model saved to: ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}"
 echo "Logs saved to: ${LOG_PATH}"
 echo "Job finished at: $(date)"
