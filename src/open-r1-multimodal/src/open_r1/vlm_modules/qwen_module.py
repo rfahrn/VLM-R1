@@ -67,8 +67,8 @@ class Qwen2VLModule(VLMBaseModule):
     @staticmethod
     def get_question_template(task_type: str):
         match task_type:
-            case "rec":
-                return "{Question} First output the thinking process in <think> </think> tags and then output the final answer in <answer> </answer> tags."
+            case "rec": # specific for bbox task adapted 
+                return "{Question} First output the thinking process in <think> </think> tags and then output the final answer in <answer> </answer> tags. Format your answer as coordinate lists like [x1, y1, x2, y2] where coordinates are between 0 and 1. For multiple regions, list all coordinates separated by 'and'. Example: <answer>[0.19, 0.5, 0.48, 0.84] and [0.63, 0.48, 0.98, 0.87]</answer>"""
             case _:
                 return "{Question} First output the thinking process in <think> </think> tags and then output the final answer in <answer> </answer> tags."
 
@@ -381,6 +381,10 @@ class Qwen2VLModule(VLMBaseModule):
                 
                 with open(log_path.replace(".txt", "_map_rewards.txt"), "a", encoding='utf-8') as f:
                     f.write(f"------------- {current_time} mAP Reward: {reward:.3f} -------------\n")
+                    f.write(f"RAW MODEL OUTPUT: {content}\n")  # ← NEW: See full model output
+                    f.write(f"RAW GROUND TRUTH: {sol}\n")     # ← NEW: See full ground truth
+                    f.write(f"EXTRACTED PRED ANSWER: {pred_answer}\n")  # ← NEW: See extracted answer
+                    f.write(f"EXTRACTED GT ANSWER: {gt_answer}\n")      # ← NEW: See extracted GT
                     f.write(f"Predicted Bboxes ({len(pred_bboxes)}): {pred_bboxes}\n")
                     f.write(f"GT Bboxes ({len(gt_bboxes)}): {gt_bboxes}\n\n")
         
