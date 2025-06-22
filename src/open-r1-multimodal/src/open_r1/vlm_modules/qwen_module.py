@@ -303,11 +303,15 @@ class Qwen2VLModule(VLMBaseModule):
             reward = 0.0
             
             try:
+                # Extract ground truth - handle both formats
                 gt_answer = Qwen2VLModule.extract_answer_content(sol)
                 gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(gt_answer)
                 
+                # Extract prediction - handle both formats  
                 pred_answer = Qwen2VLModule.extract_answer_content(content)
                 pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(pred_answer)
+                
+                # Debug logging
                 if os.getenv("DEBUG_MODE") == "true":
                     log_path = os.getenv("LOG_PATH", "debug.log")
                     current_time = datetime.now().strftime("%d-%H-%M-%S-%f")
@@ -321,18 +325,23 @@ class Qwen2VLModule(VLMBaseModule):
                         f.write(f"GT bboxes: {gt_bboxes}\n")
                 
                 reward = Qwen2VLModule.calculate_multi_bbox_score(pred_bboxes, gt_bboxes)
-            if os.getenv("DEBUG_MODE") == "true":
-                with open(log_path.replace(".txt", "_iou_debug.txt"), "a", encoding='utf-8') as f:
-                    f.write(f"Final IoU reward: {reward}\n\n")
-                    
+                
+                # More debug logging
+                if os.getenv("DEBUG_MODE") == "true":
+                    log_path = os.getenv("LOG_PATH", "debug.log")
+                    with open(log_path.replace(".txt", "_iou_debug.txt"), "a", encoding='utf-8') as f:
+                        f.write(f"Final IoU reward: {reward}\n\n")
+                        
             except Exception as e:
                 print(f"Error calculating IoU reward: {e}")
                 reward = 0.0
-
+                
                 # Log errors too
                 if os.getenv("DEBUG_MODE") == "true":
                     log_path = os.getenv("LOG_PATH", "debug.log")
+                    current_time = datetime.now().strftime("%d-%H-%M-%S-%f")
                     with open(log_path.replace(".txt", "_iou_errors.txt"), "a", encoding='utf-8') as f:
+                        f.write(f"------------- {current_time} Error -------------\n")
                         f.write(f"Error: {e}\n")
                         f.write(f"Content: {content}\n")
                         f.write(f"Solution: {sol}\n\n")
