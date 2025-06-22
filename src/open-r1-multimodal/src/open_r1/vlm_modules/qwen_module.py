@@ -308,12 +308,34 @@ class Qwen2VLModule(VLMBaseModule):
                 
                 pred_answer = Qwen2VLModule.extract_answer_content(content)
                 pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(pred_answer)
+                if os.getenv("DEBUG_MODE") == "true":
+                    log_path = os.getenv("LOG_PATH", "debug.log")
+                    current_time = datetime.now().strftime("%d-%H-%M-%S-%f")
+                    with open(log_path.replace(".txt", "_iou_debug.txt"), "a", encoding='utf-8') as f:
+                        f.write(f"------------- {current_time} IoU Debug -------------\n")
+                        f.write(f"Raw content: {content}\n")
+                        f.write(f"Raw solution: {sol}\n")
+                        f.write(f"Extracted pred_answer: {pred_answer}\n")
+                        f.write(f"Extracted gt_answer: {gt_answer}\n")
+                        f.write(f"Pred bboxes: {pred_bboxes}\n")
+                        f.write(f"GT bboxes: {gt_bboxes}\n")
                 
                 reward = Qwen2VLModule.calculate_multi_bbox_score(pred_bboxes, gt_bboxes)
+            if os.getenv("DEBUG_MODE") == "true":
+                with open(log_path.replace(".txt", "_iou_debug.txt"), "a", encoding='utf-8') as f:
+                    f.write(f"Final IoU reward: {reward}\n\n")
                     
             except Exception as e:
                 print(f"Error calculating IoU reward: {e}")
                 reward = 0.0
+
+                # Log errors too
+                if os.getenv("DEBUG_MODE") == "true":
+                    log_path = os.getenv("LOG_PATH", "debug.log")
+                    with open(log_path.replace(".txt", "_iou_errors.txt"), "a", encoding='utf-8') as f:
+                        f.write(f"Error: {e}\n")
+                        f.write(f"Content: {content}\n")
+                        f.write(f"Solution: {sol}\n\n")
             
             rewards.append(reward)
         
