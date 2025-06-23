@@ -580,7 +580,7 @@ class Qwen2VLModule(VLMBaseModule):
         return Qwen2VLModule.map_reward(completions, solution, **kwargs)
 
     @staticmethod
-    def format_only_reward(completions, solution, **kwargs):
+    def format_only(completions, solution, **kwargs):
         """Format only (for individual analysis)."""
         return Qwen2VLModule.format_reward_rec(completions, **kwargs)
 
@@ -789,6 +789,7 @@ class Qwen2VLModule(VLMBaseModule):
             # Existing functions...
             "accuracy": Qwen2VLModule.iou_reward,
             "format": Qwen2VLModule.format_reward_rec,
+            "format_only": Qwen2VLModule.format_reward_rec,  
             "iou": Qwen2VLModule.iou_reward,
             "partial_iou": Qwen2VLModule.partial_credit_iou_reward,
             "combined": Qwen2VLModule.combined_reward,
