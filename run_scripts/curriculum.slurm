@@ -132,8 +132,8 @@ python src/open_r1/grpo_jsonl.py \
     --image_folders "$image_folders" \
     --is_reward_customized_from_vlm_module True \
     --task_type "rec" \
-    --per_device_train_batch_size 1 \
-    --gradient_accumulation_steps 4 \
+    --per_device_train_batch_size 2 \
+    --gradient_accumulation_steps 2 \
     --gradient_checkpointing True \
     --logging_steps 1 \
     --num_train_epochs 3 \
@@ -142,7 +142,7 @@ python src/open_r1/grpo_jsonl.py \
     --run_name "${EXP_NAME}" \
     --data_seed 42 \
     --save_steps 50 \
-    --num_generations 1\
+    --num_generations 2\
     --max_completion_length 1024 \
     --max_prompt_length 512 \
     --reward_funcs curriculum_combined \
