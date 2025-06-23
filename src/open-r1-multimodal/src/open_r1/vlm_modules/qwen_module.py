@@ -378,7 +378,6 @@ class Qwen2VLModule(VLMBaseModule):
             if os.getenv("DEBUG_MODE") == "true":
                 log_path = os.getenv("LOG_PATH", "debug.log")
                 current_time = datetime.now().strftime("%d-%H-%M-%S-%f")
-                
                 with open(log_path.replace(".txt", "_map_rewards.txt"), "a", encoding='utf-8') as f:
                     f.write(f"------------- {current_time} mAP Reward: {reward:.3f} -------------\n")
                     f.write(f"RAW MODEL OUTPUT: {content}\n")  # ← NEW: See full model output
@@ -389,6 +388,159 @@ class Qwen2VLModule(VLMBaseModule):
                     f.write(f"GT Bboxes ({len(gt_bboxes)}): {gt_bboxes}\n\n")
         
         return rewards
+
+    @staticmethod
+    def partial_credit_iou_reward(completions, solution, **kwargs):
+        """IoU reward with partial credit for close predictions."""
+        contents = [completion[0]["content"] for completion in completions]
+        rewards = []
+        
+        for content, sol in zip(contents, solution):
+            reward = 0.0
+            
+            try:
+                gt_answer = Qwen2VLModule.extract_answer_content(sol)
+                gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(gt_answer)
+                
+                pred_answer = Qwen2VLModule.extract_answer_content(content)
+                pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(pred_answer)
+                
+                if not pred_bboxes and not gt_bboxes:
+                    reward = 1.0
+                elif not pred_bboxes or not gt_bboxes:
+                    reward = 0.0
+                else:
+                    # Calculate IoU matrix
+                    iou_matrix = []
+                    for pred_box in pred_bboxes:
+                        row = []
+                        for gt_box in gt_bboxes:
+                            iou = Qwen2VLModule.calculate_single_iou(pred_box, gt_box)
+                            row.append(iou)
+                        iou_matrix.append(row)
+                    
+                    # Greedy matching but with partial credit
+                    used_gt = set()
+                    used_pred = set()
+                    total_score = 0.0
+                    matches = 0
+                    
+                    while len(used_pred) < len(pred_bboxes) and len(used_gt) < len(gt_bboxes):
+                        best_iou = 0.0
+                        best_pred = -1
+                        best_gt = -1
+                        
+                        for p in range(len(pred_bboxes)):
+                            if p in used_pred:
+                                continue
+                            for g in range(len(gt_bboxes)):
+                                if g in used_gt:
+                                    continue
+                                if iou_matrix[p][g] > best_iou:
+                                    best_iou = iou_matrix[p][g]
+                                    best_pred = p
+                                    best_gt = g
+                        
+                        if best_iou > 0.05:  # Lower threshold - give credit for IoU > 5%
+                            # Progressive reward: IoU < 0.1 = 25%, IoU < 0.3 = 50%, IoU >= 0.3 = 100%
+                            if best_iou >= 0.3:
+                                box_score = best_iou
+                            elif best_iou >= 0.1:
+                                box_score = 0.5 * best_iou  # Partial credit
+                            else:
+                                box_score = 0.25 * best_iou  # Small credit for being close
+                            
+                            total_score += box_score
+                            matches += 1
+                            used_pred.add(best_pred)
+                            used_gt.add(best_gt)
+                        else:
+                            break
+                    
+                    if matches == 0:
+                        reward = 0.0
+                    else:
+                        avg_score = total_score / matches
+                        total_boxes = max(len(pred_bboxes), len(gt_bboxes))
+                        coverage_bonus = matches / total_boxes
+                        reward = avg_score * coverage_bonus
+                        
+            except Exception as e:
+                print(f"Error calculating partial credit IoU reward: {e}")
+                reward = 0.0
+            
+            rewards.append(reward)
+        
+        return rewards
+    
+    @staticmethod 
+    def distance_based_reward(completions, solution, **kwargs):
+        """Reward based on center distance + IoU."""
+        contents = [completion[0]["content"] for completion in completions]
+        rewards = []
+        
+        for content, sol in zip(contents, solution):
+            reward = 0.0
+            
+            try:
+                gt_answer = Qwen2VLModule.extract_answer_content(sol)
+                gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(gt_answer)
+                
+                pred_answer = Qwen2VLModule.extract_answer_content(content)
+                pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(pred_answer)
+                
+                if not pred_bboxes and not gt_bboxes:
+                    reward = 1.0
+                elif not pred_bboxes or not gt_bboxes:
+                    reward = 0.0
+                else:
+                    def calculate_center_distance(box1, box2):
+                        center1 = [(box1[0] + box1[2])/2, (box1[1] + box1[3])/2]
+                        center2 = [(box2[0] + box2[2])/2, (box2[1] + box2[3])/2]
+                        return ((center1[0] - center2[0])**2 + (center1[1] - center2[1])**2)**0.5
+                    
+                    # Find best matches based on combination of IoU and distance
+                    total_reward = 0.0
+                    used_gt = set()
+                    
+                    for pred_box in pred_bboxes:
+                        best_score = 0.0
+                        best_gt = -1
+                        
+                        for g, gt_box in enumerate(gt_bboxes):
+                            if g in used_gt:
+                                continue
+                                
+                            iou = Qwen2VLModule.calculate_single_iou(pred_box, gt_box)
+                            distance = calculate_center_distance(pred_box, gt_box)
+                            
+                            # Distance reward: closer = better (max distance ~1.4, so 1-distance/1.4)
+                            distance_reward = max(0, 1 - distance/1.4)
+                            
+                            # Combined score: 70% IoU + 30% distance
+                            combined_score = 0.7 * iou + 0.3 * distance_reward
+                            
+                            if combined_score > best_score:
+                                best_score = combined_score
+                                best_gt = g
+                        
+                        if best_gt != -1:
+                            total_reward += best_score
+                            used_gt.add(best_gt)
+                    
+                    # Average over max number of boxes
+                    total_boxes = max(len(pred_bboxes), len(gt_bboxes))
+                    reward = total_reward / total_boxes if total_boxes > 0 else 0.0
+                        
+            except Exception as e:
+                print(f"Error calculating distance-based reward: {e}")
+                reward = 0.0
+            
+            rewards.append(reward)
+        
+        return rewards
+
+
 
     @staticmethod
     def format_reward_rec(completions, **kwargs):
@@ -465,5 +617,9 @@ class Qwen2VLModule(VLMBaseModule):
             return Qwen2VLModule.format_only_reward
         elif func == "iou_fbeta":
             return Qwen2VLModule.iou_fbeta_reward_batch
+        elif func == "partial_iou":
+            return Qwen2VLModule.partial_credit_iou_reward
+        elif func == "distance_based":
+            return Qwen2VLModule.distance_based_reward
         else:
             raise ValueError(f"Unsupported reward function: {func}")
