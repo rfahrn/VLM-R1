@@ -143,6 +143,7 @@ python src/open_r1/grpo_jsonl.py \
     --max_completion_length 1024 \
     --reward_funcs curriculum_combined \
     --beta 0.02 \
+    --dataset_name this_is_not_used \
     --learning_rate 3e-5 \
     --warmup_steps 100 \
     --use_peft True \
