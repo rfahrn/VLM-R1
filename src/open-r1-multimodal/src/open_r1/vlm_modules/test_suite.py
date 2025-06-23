@@ -10,6 +10,7 @@ import sys
 import os
 import numpy as np
 from datetime import datetime
+from qwen_module import Qwen2VLModule
 
 # Add path to modules
 sys.path.append('/cluster/customapps/medinfmk/fahrnr/VLM-R1/src/open-r1-multimodal/src')
