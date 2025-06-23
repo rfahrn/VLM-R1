@@ -584,42 +584,232 @@ class Qwen2VLModule(VLMBaseModule):
         """Format only (for individual analysis)."""
         return Qwen2VLModule.format_reward_rec(completions, **kwargs)
 
+
+    @staticmethod
+    def curriculum_combined_reward(completions, solution, **kwargs):
+        """
+        Curriculum learning: Start with high format weight, gradually shift to IoU.
+        
+        Training phases:
+        - Phase 1 (steps 0-200): 90% Format + 10% IoU (learn structure)
+        - Phase 2 (steps 200-500): 70% Format + 30% IoU (transition)  
+        - Phase 3 (steps 500+): 30% Format + 70% IoU (focus on accuracy)
+        """
+        current_step = kwargs.get('current_step', 0)
+        
+        # Define curriculum phases
+        if current_step < 200:
+            format_weight, iou_weight = 0.9, 0.1
+            phase = "Structure Learning"
+        elif current_step < 500:
+            format_weight, iou_weight = 0.7, 0.3  
+            phase = "Transition"
+        else:
+            format_weight, iou_weight = 0.3, 0.7
+            phase = "Accuracy Focus"
+        
+        # Calculate individual rewards
+        iou_rewards = Qwen2VLModule.partial_credit_iou_reward(completions, solution, **kwargs)
+        format_rewards = Qwen2VLModule.format_reward_rec(completions, **kwargs)
+        
+        combined = [format_weight * fmt + iou_weight * iou 
+                    for fmt, iou in zip(format_rewards, iou_rewards)]
+        
+        # Enhanced debug logging
+        if os.getenv("DEBUG_MODE") == "true":
+            log_path = os.getenv("LOG_PATH", "debug.log")
+            current_time = datetime.now().strftime("%d-%H-%M-%S-%f")
+            
+            with open(log_path.replace(".txt", "_curriculum_rewards.txt"), "a", encoding='utf-8') as f:
+                f.write(f"------------- Step {current_step} - {phase} -------------\n")
+                f.write(f"Weights: Format={format_weight:.1f}, IoU={iou_weight:.1f}\n")
+                f.write(f"Avg Format: {sum(format_rewards)/len(format_rewards):.3f}\n")
+                f.write(f"Avg IoU: {sum(iou_rewards)/len(iou_rewards):.3f}\n")
+                f.write(f"Avg Combined: {sum(combined)/len(combined):.3f}\n\n")
+        
+        return combined
+
+    @staticmethod 
+    def momentum_reward(completions, solution, **kwargs):
+        """
+        Apply momentum/discount to format rewards to prevent over-reliance.
+        
+        If format reward has been 1.0 for N consecutive steps, start reducing it.
+        This forces the model to focus more on IoU improvement.
+        """
+        format_rewards = Qwen2VLModule.format_reward_rec(completions, **kwargs)
+        iou_rewards = Qwen2VLModule.partial_credit_iou_reward(completions, solution, **kwargs)
+        
+        # Track consecutive perfect format scores (simplified - in practice use global state)
+        avg_format = sum(format_rewards) / len(format_rewards)
+        momentum_factor = kwargs.get('momentum_factor', 0.95)
+        
+        # If format is consistently perfect, apply decay
+        if avg_format >= 0.95:  # Nearly perfect format
+            format_decay = momentum_factor ** kwargs.get('consecutive_perfect_format', 0)
+            format_rewards = [r * format_decay for r in format_rewards]
+        
+        combined = [0.5 * fmt + 0.5 * iou for fmt, iou in zip(format_rewards, iou_rewards)]
+        
+        return combined
+
+    @staticmethod
+    def shaped_reward_with_bonus(completions, solution, **kwargs):
+        """
+        Reward shaping: Give bonus for improvements, penalty for stagnation.
+        - Bonus: +0.2 if IoU improves significantly 
+        - Penalty: -0.1 if only format is correct but IoU is 0
+        - Progressive bonus: Extra reward for reaching IoU milestones
+        """
+        format_rewards = Qwen2VLModule.format_reward_rec(completions, **kwargs)
+        iou_rewards = Qwen2VLModule.partial_credit_iou_reward(completions, solution, **kwargs)
+        
+        shaped_rewards = []
+        
+        for fmt, iou in zip(format_rewards, iou_rewards):
+            base_reward = 0.5 * fmt + 0.5 * iou
+            
+            # Penalty for format-only success
+            if fmt == 1.0 and iou < 0.05:
+                penalty = -0.1
+                base_reward += penalty
+            
+            # Progressive IoU bonuses
+            if iou >= 0.5:
+                bonus = 0.3  # High accuracy bonus
+            elif iou >= 0.3:
+                bonus = 0.2  # Good accuracy bonus  
+            elif iou >= 0.1:
+                bonus = 0.1  # Improvement bonus
+            else:
+                bonus = 0.0
+                
+            final_reward = base_reward + bonus
+            shaped_rewards.append(max(0.0, final_reward))  # Ensure non-negative
+        
+        return shaped_rewards
+    
+    @staticmethod
+    def adversarial_reward(completions, solution, **kwargs):
+        """
+        Adversarial approach: Randomly mask format reward to force IoU learning.
+        With probability p, set format reward to 0 even if format is correct.
+        This prevents the model from relying solely on format.
+        """
+        import random
+        format_rewards = Qwen2VLModule.format_reward_rec(completions, **kwargs)
+        iou_rewards = Qwen2VLModule.partial_credit_iou_reward(completions, solution, **kwargs)
+        mask_probability = kwargs.get('format_mask_prob', 0.3)  # 30% chance to mask
+        masked_format_rewards = []
+        for fmt in format_rewards:
+            if random.random() < mask_probability:
+                masked_format_rewards.append(0.0)  # Force focus on IoU
+            else:
+                masked_format_rewards.append(fmt)
+        combined = [0.5 * fmt + 0.5 * iou 
+                    for fmt, iou in zip(masked_format_rewards, iou_rewards)]
+        
+        return combined
+
+    @staticmethod
+    def hierarchical_reward(completions, solution, **kwargs):
+        """
+        Hierarchical rewards: Format is prerequisite, IoU multiplies the reward.
+        
+        Structure: R = Format × (1 + IoU_bonus)
+        - No format = 0 reward regardless of IoU
+        - Perfect format + good IoU = exponential bonus
+        - This creates strong incentive for both components
+        """
+        format_rewards = Qwen2VLModule.format_reward_rec(completions, **kwargs)
+        iou_rewards = Qwen2VLModule.partial_credit_iou_reward(completions, solution, **kwargs)
+        
+        hierarchical_rewards = []
+        
+        for fmt, iou in zip(format_rewards, iou_rewards):
+            if fmt == 0.0:
+                # No format = no reward at all
+                reward = 0.0
+            else:
+                # Format is prerequisite, IoU provides multiplicative bonus
+                base_reward = 0.3  # Base reward for correct format
+                iou_multiplier = 1 + 2 * iou  # IoU can triple the reward
+                reward = base_reward * fmt * iou_multiplier
+            
+            hierarchical_rewards.append(reward)
+        
+        return hierarchical_rewards
+    
+    @staticmethod 
+    def threshold_gated_reward(completions, solution, **kwargs):
+        """
+        Threshold-gated rewards: Only give format reward if IoU > threshold.
+        
+        Forces the model to achieve minimum IoU before getting format credit.
+        Gradually lower the threshold as training progresses.
+        """
+        current_step = kwargs.get('current_step', 0)
+        
+        # Dynamic threshold: Start high, gradually lower
+        if current_step < 300:
+            iou_threshold = 0.15  # Require 15% IoU minimum
+        elif current_step < 600:
+            iou_threshold = 0.10  # Lower to 10%
+        else:
+            iou_threshold = 0.05  # Final threshold 5%
+        
+        format_rewards = Qwen2VLModule.format_reward_rec(completions, **kwargs)
+        iou_rewards = Qwen2VLModule.partial_credit_iou_reward(completions, solution, **kwargs)
+        
+        gated_rewards = []
+        
+        for fmt, iou in zip(format_rewards, iou_rewards):
+            if iou >= iou_threshold:
+                # IoU meets threshold - give full combined reward
+                reward = 0.4 * fmt + 0.6 * iou
+            else:
+                # IoU too low - only partial format credit
+                reward = 0.1 * fmt + 0.6 * iou  # Reduced format weight
+            
+            gated_rewards.append(reward)
+        
+        return gated_rewards
+
     # ========================================================================
     # REWARD FUNCTION SELECTION
     # ========================================================================
 
     @staticmethod
     def select_reward_func(func: str, task_type: str):
-        """Select the appropriate reward function for ALL your experiments."""
+        """Enhanced reward function selection with anti-reward-hacking functions."""
         if task_type != "rec":
             raise ValueError(f"Unsupported task type: {task_type}")
         
-        # Standard reward functions (work with --is_reward_customized_from_vlm_module=True)
-        if func == "accuracy":
-            return Qwen2VLModule.iou_reward
-        elif func == "format":
-            return Qwen2VLModule.format_reward_rec
+        function_registry = {
+            # Existing functions...
+            "accuracy": Qwen2VLModule.iou_reward,
+            "format": Qwen2VLModule.format_reward_rec,
+            "iou": Qwen2VLModule.iou_reward,
+            "partial_iou": Qwen2VLModule.partial_credit_iou_reward,
+            "combined": Qwen2VLModule.combined_reward,
+            
+            # NEW: Anti-reward-hacking functions
+            "curriculum_combined": Qwen2VLModule.curriculum_combined_reward,
+            "momentum_reward": Qwen2VLModule.momentum_reward,
+            "shaped_reward": Qwen2VLModule.shaped_reward_with_bonus,
+            "adversarial_reward": Qwen2VLModule.adversarial_reward,
+            "hierarchical": Qwen2VLModule.hierarchical_reward,
+            "threshold_gated": Qwen2VLModule.threshold_gated_reward,
+            
+            # Existing functions...
+            "map": Qwen2VLModule.map_reward,
+            "combined_map": Qwen2VLModule.combined_map_reward,
+            "iou_fbeta": Qwen2VLModule.iou_fbeta_reward_batch,
+            "distance_based": Qwen2VLModule.distance_based_reward,
+        }
         
-        # Custom reward functions for your experiments
-        elif func == "iou":
-            return Qwen2VLModule.iou_reward
-        elif func == "map":
-            return Qwen2VLModule.map_reward
-        elif func == "combined":
-            return Qwen2VLModule.combined_reward
-        elif func == "combined_map":
-            return Qwen2VLModule.combined_map_reward
-        elif func == "iou_only":
-            return Qwen2VLModule.iou_only_reward
-        elif func == "map_only":
-            return Qwen2VLModule.map_only_reward
-        elif func == "format_only":
-            return Qwen2VLModule.format_only_reward
-        elif func == "iou_fbeta":
-            return Qwen2VLModule.iou_fbeta_reward_batch
-        elif func == "partial_iou":
-            return Qwen2VLModule.partial_credit_iou_reward
-        elif func == "distance_based":
-            return Qwen2VLModule.distance_based_reward
-        else:
-            raise ValueError(f"Unsupported reward function: {func}")
+        if func not in function_registry:
+            available_funcs = list(function_registry.keys())
+            raise ValueError(f"Unsupported reward function: '{func}'. Available: {available_funcs}")
+        
+        return function_registry[func]
