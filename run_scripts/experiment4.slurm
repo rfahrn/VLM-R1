@@ -61,6 +61,28 @@ mkdir -p ${RUNS_BASE}/${EXP_NAME}/log
 
 export LOG_PATH="${RUNS_BASE}/${EXP_NAME}/log/debug_log.$(date +%Y-%m-%d-%H-%M-%S).txt"
 
+CHECKPOINT_DIR="${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}"
+LATEST_CHECKPOINT=""
+
+if [ -d "$CHECKPOINT_DIR" ]; then
+    # Find the highest numbered checkpoint
+    LATEST_CHECKPOINT=$(find "$CHECKPOINT_DIR" -name "checkpoint-*" -type d | sort -V | tail -1)
+    
+    if [ -n "$LATEST_CHECKPOINT" ]; then
+        echo "=== RESUMING FROM CHECKPOINT: $LATEST_CHECKPOINT ==="
+        # Use the specific checkpoint as the model path
+        model_path="$LATEST_CHECKPOINT"
+        resume_flag="True"
+    else
+        echo "=== STARTING FRESH TRAINING ==="
+        resume_flag="False"
+    fi
+else
+    echo "=== STARTING FRESH TRAINING ==="
+    resume_flag="False"
+fi
+
+
 echo "=== CXR GRPO Training Start ==="
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURM_JOB_NODELIST"
@@ -70,6 +92,7 @@ echo "Reward functions: ${REWARD_FUNCS}"
 echo "Data: ${data_paths}"
 echo "Images: ${image_folders}"
 echo "Model: ${model_path}"
+echo "Resume from checkpoint: $resume_flag"
 echo "Logs: ${LOG_PATH}"
 echo "=== Training Starting ==="
 
@@ -89,8 +112,8 @@ torchrun \
   src/open-r1-multimodal/src/open_r1/grpo_jsonl.py \
     --use_vllm False \
     --output_dir ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME} \
-    --resume_from_checkpoint True \
     --model_name_or_path $model_path \
+    --resume_from_checkpoint $resume_flag \
     --data_file_paths $data_paths \
     --image_folders $image_folders \
     --is_reward_customized_from_vlm_module $is_reward_customized_from_vlm_module \
@@ -119,6 +142,7 @@ torchrun \
     --lora_dropout 0.05 \
     --lora_task_type CAUSAL_LM \
     --freeze_vision_modules true \
+    --load_best_model_at_end true \
   2>&1 | tee "${LOG_PATH}"
 
 echo "=== Training Completed ==="
