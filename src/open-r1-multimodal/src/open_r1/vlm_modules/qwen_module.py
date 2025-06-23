@@ -781,30 +781,38 @@ class Qwen2VLModule(VLMBaseModule):
 
     @staticmethod
     def select_reward_func(func: str, task_type: str):
-        """Enhanced reward function selection with anti-reward-hacking functions."""
+        """Enhanced reward function selection with proper format function wrapper."""
         if task_type != "rec":
             raise ValueError(f"Unsupported task type: {task_type}")
         
         function_registry = {
-            # Existing functions...
+            # Basic reward functions
             "accuracy": Qwen2VLModule.iou_reward,
-            "format": Qwen2VLModule.format_reward_rec,
-            "format_only": Qwen2VLModule.format_reward_rec,  
-            "iou": Qwen2VLModule.iou_reward,
-            "partial_iou": Qwen2VLModule.partial_credit_iou_reward,
-            "combined": Qwen2VLModule.combined_reward,
+            "format": Qwen2VLModule.format_reward_rec, 
+            "format_only": Qwen2VLModule.format_reward_rec, 
             
-            # NEW: Anti-reward-hacking functions
+            # IoU-based rewards
+            "iou": Qwen2VLModule.iou_reward,
+            "iou_only": Qwen2VLModule.iou_reward,
+            "partial_iou": Qwen2VLModule.partial_credit_iou_reward,
+            
+            # mAP-based rewards  
+            "map": Qwen2VLModule.map_reward,
+            "map_only": Qwen2VLModule.map_reward,
+            
+            # Combined rewards
+            "combined": Qwen2VLModule.combined_reward,
+            "combined_map": Qwen2VLModule.combined_map_reward,
+            
+            # Anti-reward-hacking functions (PROVEN BEST PERFORMERS)
             "curriculum_combined": Qwen2VLModule.curriculum_combined_reward,
-            "momentum_reward": Qwen2VLModule.momentum_reward,
-            "shaped_reward": Qwen2VLModule.shaped_reward_with_bonus,
-            "adversarial_reward": Qwen2VLModule.adversarial_reward,
             "hierarchical": Qwen2VLModule.hierarchical_reward,
             "threshold_gated": Qwen2VLModule.threshold_gated_reward,
             
-            # Existing functions...
-            "map": Qwen2VLModule.map_reward,
-            "combined_map": Qwen2VLModule.combined_map_reward,
+            # Advanced rewards
+            "momentum_reward": Qwen2VLModule.momentum_reward,
+            "shaped_reward": Qwen2VLModule.shaped_reward_with_bonus,
+            "adversarial_reward": Qwen2VLModule.adversarial_reward,
             "iou_fbeta": Qwen2VLModule.iou_fbeta_reward_batch,
             "distance_based": Qwen2VLModule.distance_based_reward,
         }
