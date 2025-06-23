@@ -139,7 +139,7 @@ python src/open_r1/grpo_jsonl.py \
     --run_name "${EXP_NAME}" \
     --data_seed 42 \
     --save_steps 50 \
-    --num_generations 4 \
+    --num_generations 2\
     --max_completion_length 1024 \
     --reward_funcs curriculum_combined \
     --beta 0.02 \
