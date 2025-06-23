@@ -33,6 +33,9 @@ echo "Conda env: $CONDA_DEFAULT_ENV"
 export EXP_NAME="CXR_single_gpu_curriculum"
 export DEBUG_MODE="true"
 
+export DEBUG_MODE="true"
+export WANDB_DISABLED=true
+
 # Use correct paths
 data_paths="${HOME}/train_scxr2.jsonl"
 image_folders="/cluster/dataset/medinfmk/public_radiology_repo"
@@ -144,6 +147,7 @@ python src/open_r1/grpo_jsonl.py \
     --reward_funcs curriculum_combined \
     --beta 0.02 \
     --dataset_name this_is_not_used \
+    --report_to none \
     --learning_rate 3e-5 \
     --warmup_steps 100 \
     --use_peft True \
