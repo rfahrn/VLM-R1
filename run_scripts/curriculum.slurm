@@ -8,46 +8,68 @@
 #SBATCH --mem-per-gpu=24G
 #SBATCH --time=14:00:00
 
-cd /cluster/customapps/medinfmk/fahrnr/VLM-R1
+#----------------------------------------
+# Project setup
+#----------------------------------------
+PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+export REPO_HOME="${PROJECT_ROOT}"
+cd "${REPO_HOME}/src/open-r1-multimodal"
+echo "REPO_HOME: $REPO_HOME"
 
-# Load conda environment
+#----------------------------------------
+# Environment
+#----------------------------------------
 source ~/.bashrc
 conda activate rebecka
 
-# Base paths
-export REPO_HOME="/cluster/customapps/medinfmk/fahrnr/VLM-R1"
-export OUTPUT_BASE="${HOME}/vlm_experiments"
-export RUNS_BASE="${HOME}/runs"
+#----------------------------------------
+# Paths & experiment name
+#----------------------------------------
+export EXP_NAME="CXR_anti_reward_hack"
+export DEBUG_MODE="true"
 
-# Data and model
-data_paths="${HOME}/train_scxr2.jsonl"
+data_paths="/cluster/dataset/medinfmk/public_radiology_repo/train_scxr2.jsonl"
 image_folders="/cluster/dataset/medinfmk/public_radiology_repo"
 model_path="${REPO_HOME}/Qwen2.5-VL-3B-Instruct"
 
-# Choose exactly one combined reward
-REWARD_FUNCS="curriculum_combined"   # options: combined, combined_map, curriculum_combined, threshold_gated
-EXP_NAME="CXR_anti_reward_hack"
+mkdir -p "${REPO_HOME}/checkpoints/rl/${EXP_NAME}"
+mkdir -p "${REPO_HOME}/runs/${EXP_NAME}/log"
 
-# Create output dirs
-mkdir -p "${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}"
-mkdir -p "${RUNS_BASE}/${EXP_NAME}/log"
+export LOG_PATH="${REPO_HOME}/runs/${EXP_NAME}/log/debug_log.$(date +%F-%H-%M-%S).txt"
 
-export DEBUG_MODE="true"
-export LOG_PATH="${RUNS_BASE}/${EXP_NAME}/log/debug_log.$(date +%Y-%m-%d-%H-%M-%S).txt"
+echo "Experiment:    $EXP_NAME"
+echo "Data paths:    $data_paths"
+echo "Image folders: $image_folders"
+echo "Model path:    $model_path"
+echo "Log file:      $LOG_PATH"
 
-echo "=== Anti-Reward-Hacking GRPO Training ==="
-echo "Reward function: ${REWARD_FUNCS}"
-echo "Strategy: Curriculum learning with progressive weighting"
+#----------------------------------------
+# Auto-detect last checkpoint (if any)
+#----------------------------------------
+CKPT_DIR="${REPO_HOME}/checkpoints/rl/${EXP_NAME}"
+LATEST_CKPT="$(ls -td ${CKPT_DIR}/checkpoint-* 2>/dev/null | head -n1 || true)"
 
+if [[ -n "$LATEST_CKPT" && -d "$LATEST_CKPT" ]]; then
+  echo "Found existing checkpoint: $LATEST_CKPT"
+  RESUME_FLAGS="--resume_from_checkpoint $LATEST_CKPT"
+else
+  echo "No checkpoint found; starting fresh"
+  RESUME_FLAGS=""
+fi
+
+#----------------------------------------
+# Launch training
+#----------------------------------------
 torchrun \
-  --nproc_per_node=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l) \
+  --nproc_per_node=3 \
   --nnodes=1 \
   --node_rank=0 \
-  --master_addr=127.0.0.1 \
+  --master_addr="127.0.0.1" \
   --master_port=12349 \
-  src/open-r1-multimodal/src/open_r1/grpo_jsonl.py \
+  src/open_r1/grpo_jsonl.py \
     --use_vllm False \
-    --output_dir "${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}" \
+    --output_dir "${CKPT_DIR}" \
+    $RESUME_FLAGS \
     --model_name_or_path "$model_path" \
     --data_file_paths "$data_paths" \
     --image_folders "$image_folders" \
@@ -55,32 +77,29 @@ torchrun \
     --task_type "rec" \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 2 \
+    --gradient_checkpointing True \
     --logging_steps 1 \
     --num_train_epochs 3 \
     --bf16 \
+    --attn_implementation flash_attention_2 \
     --run_name "${EXP_NAME}" \
-    --max_steps 1000 \
+    --data_seed 42 \
     --save_steps 50 \
     --num_generations 4 \
     --max_completion_length 1024 \
-    --reward_funcs "${REWARD_FUNCS}" \
-    \
-    # Anti-reward-hacking hyperparams
+    --reward_funcs curriculum_combined \
     --beta 0.02 \
     --learning_rate 3e-5 \
     --warmup_steps 100 \
-    \
-    # LoRA & PEFT
-    --use_peft true \
+    --use_peft True \
     --lora_r 16 \
     --lora_alpha 32 \
     --lora_dropout 0.1 \
-    \
-    # Freeze vision, checkpointing, regularization
-    --gradient_checkpointing true \
+    --lora_task_type CAUSAL_LM \
+    --freeze_vision_modules True \
     --weight_decay 0.01 \
     --max_grad_norm 1.0 \
   2>&1 | tee "${LOG_PATH}"
 
-echo "=== Training Completed ==="
+echo "Training completed for ${EXP_NAME}"
 
