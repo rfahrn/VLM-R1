@@ -543,12 +543,11 @@ class Qwen2VLModule(VLMBaseModule):
 
 
     @staticmethod
-    def format_reward_rec(completions, **kwargs):
+    def format_reward_rec(completions, solution=None, **kwargs):
         """Format reward - checks <think></think><answer></answer> structure."""
         pattern = r"<think>.*?</think>\s*<answer>.*?</answer>"
         completion_contents = [completion[0]["content"] for completion in completions]
         matches = [re.search(pattern, content, re.DOTALL) is not None for content in completion_contents]
-        
         return [1.0 if match else 0.0 for match in matches]
 
     @staticmethod
@@ -582,7 +581,7 @@ class Qwen2VLModule(VLMBaseModule):
     @staticmethod
     def format_only(completions, solution, **kwargs):
         """Format only (for individual analysis)."""
-        return Qwen2VLModule.format_reward_rec(completions, **kwargs)
+        return Qwen2VLModule.format_reward_rec(completions, solution, **kwargs)
 
 
     @staticmethod
