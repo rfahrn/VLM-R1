@@ -1,5 +1,3 @@
-# GRPO Training Script with Anti-Reward-Hacking Measures
-
 #!/usr/bin/env bash
 #SBATCH --job-name=cxr_grpo_improved
 #SBATCH --output=/cluster/home/fahrnr/slurm_logs/%x_%j.out
