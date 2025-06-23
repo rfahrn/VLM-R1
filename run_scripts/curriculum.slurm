@@ -77,7 +77,6 @@ torchrun \
     --lora_dropout 0.1 \
     \
     # Freeze vision, checkpointing, regularization
-    --freeze_vision_modules true \
     --gradient_checkpointing true \
     --weight_decay 0.01 \
     --max_grad_norm 1.0 \
