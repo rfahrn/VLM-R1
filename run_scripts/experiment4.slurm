@@ -122,11 +122,12 @@ torchrun \
     --num_generations 3 \
     --max_completion_length 2048 \
     --reward_funcs combined_map map iou partial_iou iou_fbeta \
-    --beta 0.04 \
+    --beta 0.02 \
     --report_to none \
+    --clip_range 0.2 \
     --dataset-name this_is_not_used \
     --deepspeed ${REPO_HOME}/src/open-r1-multimodal/local_scripts/zero2.json \
-    --learning_rate 1e-7 \
+    --learning_rate 5e-7 \
     --use_peft true \
     --lora_r 64 \
     --lora_alpha 128 \
