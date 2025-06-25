@@ -31,16 +31,16 @@ echo "image_folders: $image_folders"
 
 # Experiment configuration
 export EXP_NAME="CXR_combined_map_simple"
-TASK_TYPE="cxr"
+TASK_TYPE="rec"
 
 # Training settings
 export DEBUG_MODE="true"
 export WANDB_DISABLED=true
 
-# Create directories
-mkdir -p ${REPO_HOME}/checkpoints/rl/${EXP_NAME}
-mkdir -p ${REPO_HOME}/runs/${EXP_NAME}/log
-export LOG_PATH="${REPO_HOME}/runs/${EXP_NAME}/log/debug_log.$(date +%Y-%m-%d-%H-%M-%S).txt"
+# Create directories in WRITABLE locations
+mkdir -p ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}
+mkdir -p ${RUNS_BASE}/${EXP_NAME}/log
+export LOG_PATH="${RUNS_BASE}/${EXP_NAME}/log/debug_log.$(date +%Y-%m-%d-%H-%M-%S).txt"
 
 echo "=== CXR GRPO Training Start ==="
 echo "Job ID: $SLURM_JOB_ID"
@@ -66,13 +66,13 @@ torchrun \
   --master_port=12349 \
   src/open_r1/grpo_jsonl.py \
     --use_vllm False \
-    --output_dir ${REPO_HOME}/checkpoints/rl/${EXP_NAME} \
+    --output_dir ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME} \
     --resume_from_checkpoint True \
     --model_name_or_path $model_path \
     --data_file_paths $data_paths \
     --image_folders $image_folders \
     --is_reward_customized_from_vlm_module $is_reward_customized_from_vlm_module \
-    --task_type ${TASK_TYPE} \
+    --task_type cxr \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 3 \
     --gradient_checkpointing true \
@@ -100,6 +100,6 @@ torchrun \
   2>&1 | tee "${LOG_PATH}"
 
 echo "=== Training Completed ==="
-echo "Model saved to: ${REPO_HOME}/checkpoints/rl/${EXP_NAME}"
+echo "Model saved to: ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}"
 echo "Logs saved to: ${LOG_PATH}"
 echo "Job finished at: $(date)"
