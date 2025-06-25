@@ -69,6 +69,8 @@ class Qwen2VLModule(VLMBaseModule):
         match task_type:
             case "rec": # specific for bbox task adapted 
                 return "{Question} First output the thinking process in <think> </think> tags and then output the final answer in <answer> </answer> tags. Format your answer as coordinate lists like [x1, y1, x2, y2] where coordinates are between 0 and 1. For multiple regions, list all coordinates separated by 'and'. Example: <answer>[0.19, 0.5, 0.48, 0.84] and [0.63, 0.48, 0.98, 0.87]</answer>"""
+            case "cxr": 
+                return "{Question} First output the thinking process in <think> </think> tags and then output the final answer in <answer> </answer> tags."
             case _:
                 return "{Question} First output the thinking process in <think> </think> tags and then output the final answer in <answer> </answer> tags."
 
