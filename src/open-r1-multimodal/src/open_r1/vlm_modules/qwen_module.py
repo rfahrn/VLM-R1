@@ -472,6 +472,21 @@ class Qwen2VLModule(VLMBaseModule):
                 reward = 0.0
             
             rewards.append(reward)
+            # Enhanced debug logging
+        if os.getenv("DEBUG_MODE") == "true":
+            log_path = os.getenv("LOG_PATH", "debug.log")
+            current_time = datetime.now().strftime("%d-%H-%M-%S-%f")
+            
+            with open(log_path.replace(".txt", "_partial_iou_rewards.txt"), "a", encoding='utf-8') as f:
+                f.write(f"------------- {current_time} Partial Credit IoU Reward -------------\n")
+                f.write(f"Avg Reward: {sum(rewards)/len(rewards):.4f}\n")
+                f.write(f"Min/Max: {min(rewards):.4f}/{max(rewards):.4f}\n")
+                f.write(f"Non-zero rewards: {sum(1 for r in rewards if r > 0)}/{len(rewards)}\n")
+                for i, (content, sol, reward) in enumerate(zip(contents, solution, rewards)):
+                    pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(Qwen2VLModule.extract_answer_content(content))
+                    gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(Qwen2VLModule.extract_answer_content(sol))
+                    f.write(f"Sample {i}: Reward={reward:.4f}, Pred={len(pred_bboxes)}boxes, GT={len(gt_bboxes)}boxes\n")
+                f.write("\n")
         
         return rewards
     
@@ -559,6 +574,20 @@ class Qwen2VLModule(VLMBaseModule):
         format_rewards = Qwen2VLModule.format_reward_rec(completions, **kwargs)
         
         combined = [0.5 * iou + 0.5 * fmt for iou, fmt in zip(iou_rewards, format_rewards)]
+        # Enhanced debug logging
+        if os.getenv("DEBUG_MODE") == "true":
+            log_path = os.getenv("LOG_PATH", "debug.log")
+            current_time = datetime.now().strftime("%d-%H-%M-%S-%f")
+            
+            with open(log_path.replace(".txt", "_combined_rewards.txt"), "a", encoding='utf-8') as f:
+                f.write(f"------------- {current_time} Combined Reward (50% IoU + 50% Format) -------------\n")
+                f.write(f"Avg IoU: {sum(iou_rewards)/len(iou_rewards):.4f}\n")
+                f.write(f"Avg Format: {sum(format_rewards)/len(format_rewards):.4f}\n")
+                f.write(f"Avg Combined: {sum(combined)/len(combined):.4f}\n")
+                f.write(f"Min/Max Combined: {min(combined):.4f}/{max(combined):.4f}\n")
+                for i, (iou, fmt, comb) in enumerate(zip(iou_rewards, format_rewards, combined)):
+                    f.write(f"Sample {i}: IoU={iou:.4f}, Format={fmt:.1f}, Combined={comb:.4f}\n")
+                f.write("\n")
         return combined
 
     @staticmethod
@@ -568,6 +597,20 @@ class Qwen2VLModule(VLMBaseModule):
         format_rewards = Qwen2VLModule.format_reward_rec(completions, **kwargs)
         
         combined = [0.5 * map_r + 0.5 * fmt for map_r, fmt in zip(map_rewards, format_rewards)]
+        # Enhanced debug logging
+        if os.getenv("DEBUG_MODE") == "true":
+            log_path = os.getenv("LOG_PATH", "debug.log")
+            current_time = datetime.now().strftime("%d-%H-%M-%S-%f")
+            
+            with open(log_path.replace(".txt", "_combined_map_rewards.txt"), "a", encoding='utf-8') as f:
+                f.write(f"------------- {current_time} Combined mAP Reward (50% mAP + 50% Format) -------------\n")
+                f.write(f"Avg mAP: {sum(map_rewards)/len(map_rewards):.4f}\n")
+                f.write(f"Avg Format: {sum(format_rewards)/len(format_rewards):.4f}\n")
+                f.write(f"Avg Combined: {sum(combined)/len(combined):.4f}\n")
+                f.write(f"Min/Max Combined: {min(combined):.4f}/{max(combined):.4f}\n")
+                for i, (map_r, fmt, comb) in enumerate(zip(map_rewards, format_rewards, combined)):
+                    f.write(f"Sample {i}: mAP={map_r:.4f}, Format={fmt:.1f}, Combined={comb:.4f}\n")
+                f.write("\n")
         return combined
 
     @staticmethod
