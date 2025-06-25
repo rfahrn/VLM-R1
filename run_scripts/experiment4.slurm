@@ -45,7 +45,8 @@ TASK_TYPE="rec"
 # - "map_only" (mAP Only)
 # - "combined_map" (50% mAP + 50% Format)
 REWARD_FUNCS="combined_map"
-EXP_NAME="CXR_combined_map"
+# EXP_NAME="CXR_combined_map"
+EXP_NAME="many"
 
 # Training settings
 export DEBUG_MODE="true"
@@ -117,7 +118,7 @@ torchrun \
     --data_file_paths $data_paths \
     --image_folders $image_folders \
     --is_reward_customized_from_vlm_module $is_reward_customized_from_vlm_module \
-    --task_type $TASK_TYPE \
+    --task_type none \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 3 \
     --gradient_checkpointing true \
@@ -130,12 +131,12 @@ torchrun \
     --save_steps 100 \
     --num_generations 3 \
     --max_completion_length 2048 \
-    --reward_funcs ${REWARD_FUNCS} \
+    --reward_funcs ${REWARD_FUNCS} map iou partial_iou iou_fbeta \
     --beta 0.04 \
     --report_to none \
     --dataset-name this_is_not_used \
     --deepspeed ${REPO_HOME}/src/open-r1-multimodal/local_scripts/zero2.json \
-    --learning_rate 1e-5 \
+    --learning_rate 1e-7 \
     --use_peft true \
     --lora_r 64 \
     --lora_alpha 128 \
