@@ -783,7 +783,7 @@ class Qwen2VLModule(VLMBaseModule):
     @staticmethod
     def select_reward_func(func: str, task_type: str):
         """Enhanced reward function selection with proper format function wrapper."""
-        if task_type != "rec":
+        if task_type not in ["rec", "cxr"]: 
             raise ValueError(f"Unsupported task type: {task_type}")
         
         function_registry = {
