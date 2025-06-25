@@ -143,7 +143,6 @@ torchrun \
     --lora_dropout 0.05 \
     --lora_task_type CAUSAL_LM \
     --freeze_vision_modules true \
-    --load_best_model_at_end true \
   2>&1 | tee "${LOG_PATH}"
 
 echo "=== Training Completed ==="
