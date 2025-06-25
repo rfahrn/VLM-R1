@@ -53,7 +53,7 @@ EXP_NAME="CXR_combined_map_cxr_task"
 
 # Training settings
 export DEBUG_MODE="true"
-export WANDB_DISABLED=true
+WANDB_MODE=offline
 
 # Setup directories in writable locations
 mkdir -p ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}
