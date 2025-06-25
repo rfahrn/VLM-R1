@@ -31,7 +31,7 @@ echo "image_folders: $image_folders"
 
 # Experiment configuration
 export EXP_NAME="CXR_combined_map_simple"
-TASK_TYPE="rec"
+TASK_TYPE="cxr"
 
 # Training settings
 export DEBUG_MODE="true"
@@ -72,7 +72,7 @@ torchrun \
     --data_file_paths $data_paths \
     --image_folders $image_folders \
     --is_reward_customized_from_vlm_module $is_reward_customized_from_vlm_module \
-    --task_type cxr \
+    --task_type ${TASK_TYPE} \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 3 \
     --gradient_checkpointing true \
