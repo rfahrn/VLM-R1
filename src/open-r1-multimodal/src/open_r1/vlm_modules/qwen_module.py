@@ -75,8 +75,21 @@ class Qwen2VLModule(VLMBaseModule):
                 return "{Question} First output the thinking process in <think> </think> tags and then output the final answer in <answer> </answer> tags."
 
     @staticmethod
-    def extract_all_bboxes_from_text(text: str) -> List[List[float]]:
-        """Extract ALL bounding box coordinates from text."""
+    def extract_all_bboxes_from_text_smart(text: str, auto_normalize: bool = True) -> List[List[float]]:
+        """
+        Extract ALL bounding box coordinates from text with smart normalization.
+        
+        Handles both formats:
+        - Normalized: [0.15, 0.37, 0.4, 0.75] (values 0-1)
+        - Pixel: [2500, 3, 3080, 480] (values > 1)
+        
+        Args:
+            text: Input text containing coordinates
+            auto_normalize: If True, automatically normalize pixel coordinates to [0,1]
+        
+        Returns:
+            List of normalized bounding boxes [[x1, y1, x2, y2], ...]
+        """
         text = text.strip()
         bboxes = []
         
@@ -99,6 +112,99 @@ class Qwen2VLModule(VLMBaseModule):
             for match in matches:
                 coords = [float(x) for x in match]
                 bboxes.append(coords)
+        
+        # Smart normalization
+        if auto_normalize and bboxes:
+            normalized_bboxes = []
+            
+            for bbox in bboxes:
+                x1, y1, x2, y2 = bbox
+                
+                # Check if coordinates are likely in pixel format (any value > 1.5)
+                if max(bbox) > 1.5:
+                    # Estimate image dimensions based on coordinate values
+                    max_x = max(x1, x2)
+                    max_y = max(y1, y2)
+                    
+                    # Common medical image dimensions
+                    possible_widths = [512, 768, 1024, 1536, 2048, 3000, 4096]
+                    possible_heights = [512, 768, 1024, 1536, 2048, 3000, 4096]
+                    
+                    # Find the smallest dimensions that contain all coordinates
+                    image_width = next((w for w in possible_widths if w >= max_x), max_x * 1.1)
+                    image_height = next((h for h in possible_heights if h >= max_y), max_y * 1.1)
+                    
+                    # Special handling for very large coordinates
+                    if max_x > 4096 or max_y > 4096:
+                        # Likely high-res medical image, estimate dimensions
+                        image_width = max(4096, max_x * 1.05)  
+                        image_height = max(4096, max_y * 1.05)
+                    
+                    # Normalize coordinates
+                    norm_x1 = x1 / image_width
+                    norm_y1 = y1 / image_height  
+                    norm_x2 = x2 / image_width
+                    norm_y2 = y2 / image_height
+                    
+                    # Ensure coordinates are in [0,1] range
+                    norm_bbox = [
+                        max(0.0, min(1.0, norm_x1)),
+                        max(0.0, min(1.0, norm_y1)), 
+                        max(0.0, min(1.0, norm_x2)),
+                        max(0.0, min(1.0, norm_y2))
+                    ]
+                    
+                    normalized_bboxes.append(norm_bbox)
+                    
+                    # Debug logging
+                    if os.getenv("DEBUG_MODE") == "true":
+                        log_path = os.getenv("LOG_PATH", "debug.log")
+                        with open(log_path.replace(".txt", "_normalization_debug.txt"), "a", encoding='utf-8') as f:
+                            f.write(f"Normalized bbox: {bbox} -> {norm_bbox}\n")
+                            f.write(f"Estimated dimensions: {image_width}x{image_height}\n")
+                            f.write(f"Original max values: x={max_x}, y={max_y}\n\n")
+                else:
+                    # Already normalized (values between 0-1)
+                    normalized_bboxes.append(bbox)
+            
+            return normalized_bboxes
+        
+        return bboxes
+    
+    
+    @staticmethod  
+    def extract_all_bboxes_from_text_enhanced(text: str) -> List[List[float]]:
+        """
+        Enhanced version that also handles different coordinate formats and keywords.
+        """
+        text = text.strip().lower()
+        
+        # First try the smart extraction
+        bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(text, auto_normalize=True)
+        
+        if bboxes:
+            return bboxes
+        
+        # Fallback: try to find coordinates mentioned in different ways
+        coordinate_patterns = [
+            # "coordinates are x1, y1, x2, y2"
+            r'coordinates?\s+(?:are\s+)?(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)',
+            # "at x1, y1 to x2, y2"  
+            r'at\s+(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)\s+to\s+(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)',
+            # "from x1, y1 to x2, y2"
+            r'from\s+(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)\s+to\s+(\d+(?:\.\d+)?)[,\s]+(\d+(?:\.\d+)?)',
+            # "located at x1 y1 x2 y2"
+            r'located\s+at\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)'
+        ]
+        
+        for pattern in coordinate_patterns:
+            matches = re.findall(pattern, text)
+            for match in matches:
+                coords = [float(x) for x in match]
+                # Apply smart normalization
+                normalized = Qwen2VLModule.extract_all_bboxes_from_text_smart(str(coords), auto_normalize=True)
+                if normalized:
+                    bboxes.extend(normalized)
         
         return bboxes
 
@@ -289,8 +395,10 @@ class Qwen2VLModule(VLMBaseModule):
         for content, sol in zip([c[0]["content"] for c in completions], solution):
             pred_answer = Qwen2VLModule.extract_answer_content(content)
             gt_answer   = Qwen2VLModule.extract_answer_content(sol)
-            pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(pred_answer)
-            gt_bboxes   = Qwen2VLModule.extract_all_bboxes_from_text(gt_answer)
+            #pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(pred_answer)
+            #gt_bboxes   = Qwen2VLModule.extract_all_bboxes_from_text(gt_answer)
+            pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(pred_answer, auto_normalize=True)
+            gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(gt_answer, auto_normalize=True)
             reward = Qwen2VLModule.continuous_iou_fbeta_reward(pred_bboxes, gt_bboxes, alpha=alpha)
             rewards.append(reward)
         return rewards
@@ -307,11 +415,13 @@ class Qwen2VLModule(VLMBaseModule):
             try:
                 # Extract ground truth - handle both formats
                 gt_answer = Qwen2VLModule.extract_answer_content(sol)
-                gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(gt_answer)
+                #gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(gt_answer)
+                gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(gt_answer, auto_normalize=True)
                 
                 # Extract prediction - handle both formats  
                 pred_answer = Qwen2VLModule.extract_answer_content(content)
-                pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(pred_answer)
+                #pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(pred_answer)
+                pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(pred_answer, auto_normalize=True)
                 
                 # Debug logging
                 if os.getenv("DEBUG_MODE") == "true":
@@ -363,10 +473,13 @@ class Qwen2VLModule(VLMBaseModule):
             
             try:
                 gt_answer = Qwen2VLModule.extract_answer_content(sol)
-                gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(gt_answer)
+                #gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(gt_answer)
+                gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(gt_answer, auto_normalize=True)
                 
                 pred_answer = Qwen2VLModule.extract_answer_content(content)
-                pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(pred_answer)
+                #pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(pred_answer)
+                pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(pred_answer, auto_normalize=True)
+               
                 
                 reward = Qwen2VLModule.calculate_map_score(pred_bboxes, gt_bboxes)
                     
@@ -402,10 +515,10 @@ class Qwen2VLModule(VLMBaseModule):
             
             try:
                 gt_answer = Qwen2VLModule.extract_answer_content(sol)
-                gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(gt_answer)
+                gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(gt_answer)
                 
                 pred_answer = Qwen2VLModule.extract_answer_content(content)
-                pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(pred_answer)
+                pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(pred_answer)
                 
                 if not pred_bboxes and not gt_bboxes:
                     reward = 1.0
@@ -483,8 +596,8 @@ class Qwen2VLModule(VLMBaseModule):
                 f.write(f"Min/Max: {min(rewards):.4f}/{max(rewards):.4f}\n")
                 f.write(f"Non-zero rewards: {sum(1 for r in rewards if r > 0)}/{len(rewards)}\n")
                 for i, (content, sol, reward) in enumerate(zip(contents, solution, rewards)):
-                    pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(Qwen2VLModule.extract_answer_content(content))
-                    gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(Qwen2VLModule.extract_answer_content(sol))
+                    pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(Qwen2VLModule.extract_answer_content(content))
+                    gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(Qwen2VLModule.extract_answer_content(sol))
                     f.write(f"Sample {i}: Reward={reward:.4f}, Pred={len(pred_bboxes)}boxes, GT={len(gt_bboxes)}boxes\n")
                 f.write("\n")
         
@@ -504,7 +617,7 @@ class Qwen2VLModule(VLMBaseModule):
                 gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(gt_answer)
                 
                 pred_answer = Qwen2VLModule.extract_answer_content(content)
-                pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(pred_answer)
+                pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(pred_answer)
                 
                 if not pred_bboxes and not gt_bboxes:
                     reward = 1.0
