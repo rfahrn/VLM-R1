@@ -16,13 +16,10 @@ from open_r1.vlm_modules.qwen_module import Qwen2VLModule
 sys.path.append('/cluster/customapps/medinfmk/fahrnr/VLM-R1/src/open-r1-multimodal/src')
 
 def setup_test_environment():
-    """Setup test environment with debug mode."""
     os.environ["DEBUG_MODE"] = "true"
     os.environ["LOG_PATH"] = "/tmp/test_rewards_debug.txt"
-    print("🔧 Test environment setup complete")
 
 def create_test_cases():
-    """Create comprehensive test cases covering various scenarios."""
     return {
         "perfect_match": {
             "input": "<think>I can see the opacities clearly in both lung fields.</think><answer>It is displayed at [0.19, 0.5, 0.48, 0.84] and [0.63, 0.48, 0.98, 0.87] in the radiograph.</answer>",
@@ -96,7 +93,6 @@ def create_test_cases():
     }
 
 def create_ground_truth_variations():
-    """Create different ground truth formats for testing."""
     return {
         "standard": "It is displayed at [0.19, 0.5, 0.48, 0.84] and [0.63, 0.48, 0.98, 0.87] in the radiograph.",
         "with_answer_tags": "<answer>[0.19, 0.5, 0.48, 0.84] and [0.63, 0.48, 0.98, 0.87]</answer>",
@@ -106,20 +102,17 @@ def create_ground_truth_variations():
     }
 
 def test_reward_function(reward_func, func_name, test_cases, ground_truth_dict, **kwargs):
-    """Test a specific reward function with all test cases."""
     print(f"\n{'='*60}")
-    print(f"🧪 Testing {func_name.upper()}")
+    print(f"Testing {func_name.upper()}")
     print(f"{'='*60}")
     
     results = {}
     
     for gt_name, ground_truth in ground_truth_dict.items():
         print(f"\n--- Ground Truth: {gt_name} ---")
-        
         gt_answer = Qwen2VLModule.extract_answer_content(ground_truth)
         gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(gt_answer)
         print(f"GT bboxes ({len(gt_bboxes)}): {gt_bboxes}")
-        
         case_results = []
         
         for case_name, test_case in test_cases.items():
