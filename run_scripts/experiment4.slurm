@@ -1,4 +1,4 @@
-##!/usr/bin/env bash
+#!/usr/bin/env bash
 #SBATCH --job-name=cxr_grpo
 #SBATCH --output=/cluster/home/fahrnr/slurm_logs/%x_%j.out
 #SBATCH --error=/cluster/home/fahrnr/slurm_logs/%x_%j.err
