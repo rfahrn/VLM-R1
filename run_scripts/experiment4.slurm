@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+##!/usr/bin/env bash
 #SBATCH --job-name=cxr_grpo
 #SBATCH --output=/cluster/home/fahrnr/slurm_logs/%x_%j.out
 #SBATCH --error=/cluster/home/fahrnr/slurm_logs/%x_%j.err
@@ -8,9 +8,6 @@
 #SBATCH --mem-per-gpu=24G
 #SBATCH --time=14:00:00
 #SBATCH --chdir=/cluster/customapps/medinfmk/fahrnr/VLM-R1
-
-# or, if you don't use --chdir, add explicitly:
-cd /cluster/customapps/medinfmk/fahrnr/VLM-R1
 
 # Ensure slurm_logs directory exists
 mkdir -p /cluster/home/fahrnr/slurm_logs
@@ -22,78 +19,35 @@ conda activate rebecka
 # Configuration
 PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 export REPO_HOME="/cluster/customapps/medinfmk/fahrnr/VLM-R1"
-
-
-
-# Use HOME directory for writable outputs
-export OUTPUT_BASE="${HOME}/vlm_experiments"
-export RUNS_BASE="${HOME}/runs"
+echo "REPO_HOME: $REPO_HOME"
 
 # Your CXR data
 data_paths="${HOME}/train_scxr2.jsonl"
 image_folders="/cluster/dataset/medinfmk/public_radiology_repo"
 model_path="${REPO_HOME}/Qwen2.5-VL-3B-Instruct"
 is_reward_customized_from_vlm_module=True
-TASK_TYPE="rec"
+echo "data_paths: $data_paths"
+echo "image_folders: $image_folders"
 
-# Experiment configuration - CHANGE THESE FOR DIFFERENT EXPERIMENTS
-# Options: 
-# - "accuracy format" (IoU + Format)
-# - "iou_only" (IoU Only)
-# - "format_only" (Format Only)
-# - "combined" (50% IoU + 50% Format)
-# - "map_only" (mAP Only)
-# - "combined_map" (50% mAP + 50% Format)
-REWARD_FUNCS="combined_map"
-# EXP_NAME="CXR_combined_map"
-EXP_NAME="many"
+# Experiment configuration
+export EXP_NAME="CXR_combined_map_simple"
+TASK_TYPE="rec"
 
 # Training settings
 export DEBUG_MODE="true"
 export WANDB_DISABLED=true
 
-# Setup directories in writable locations
-mkdir -p ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}
-mkdir -p ${RUNS_BASE}/${EXP_NAME}/log
-
-# Setup directories in writable locations
-mkdir -p ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}
-mkdir -p ${RUNS_BASE}/${EXP_NAME}/log
-
-export LOG_PATH="${RUNS_BASE}/${EXP_NAME}/log/debug_log.$(date +%Y-%m-%d-%H-%M-%S).txt"
-
-CHECKPOINT_DIR="${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}"
-LATEST_CHECKPOINT=""
-
-if [ -d "$CHECKPOINT_DIR" ]; then
-    # Find the highest numbered checkpoint
-    LATEST_CHECKPOINT=$(find "$CHECKPOINT_DIR" -name "checkpoint-*" -type d | sort -V | tail -1)
-    
-    if [ -n "$LATEST_CHECKPOINT" ]; then
-        echo "=== RESUMING FROM CHECKPOINT: $LATEST_CHECKPOINT ==="
-        # Use the specific checkpoint as the model path
-        model_path="$LATEST_CHECKPOINT"
-        resume_flag="True"
-    else
-        echo "=== STARTING FRESH TRAINING ==="
-        resume_flag="False"
-    fi
-else
-    echo "=== STARTING FRESH TRAINING ==="
-    resume_flag="False"
-fi
-
+# Create directories
+mkdir -p ${REPO_HOME}/checkpoints/rl/${EXP_NAME}
+mkdir -p ${REPO_HOME}/runs/${EXP_NAME}/log
+export LOG_PATH="${REPO_HOME}/runs/${EXP_NAME}/log/debug_log.$(date +%Y-%m-%d-%H-%M-%S).txt"
 
 echo "=== CXR GRPO Training Start ==="
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURM_JOB_NODELIST"
 echo "GPUs: $SLURM_GPUS_ON_NODE"
 echo "Experiment: ${EXP_NAME}"
-echo "Reward functions: ${REWARD_FUNCS}"
-echo "Data: ${data_paths}"
-echo "Images: ${image_folders}"
 echo "Model: ${model_path}"
-echo "Resume from checkpoint: $resume_flag"
 echo "Logs: ${LOG_PATH}"
 echo "=== Training Starting ==="
 
@@ -101,20 +55,20 @@ echo "=== Training Starting ==="
 nvidia-smi
 
 # Change to source directory
-cd ${REPO_HOME}
+cd ${REPO_HOME}/src/open-r1-multimodal
 
 # Launch training
 torchrun \
-  --nproc_per_node=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l) \
+  --nproc_per_node=3 \
   --nnodes=1 \
   --node_rank=0 \
   --master_addr=127.0.0.1 \
   --master_port=12349 \
-  src/open-r1-multimodal/src/open_r1/grpo_jsonl.py \
+  src/open_r1/grpo_jsonl.py \
     --use_vllm False \
-    --output_dir ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME} \
+    --output_dir ${REPO_HOME}/checkpoints/rl/${EXP_NAME} \
+    --resume_from_checkpoint True \
     --model_name_or_path $model_path \
-    --resume_from_checkpoint $resume_flag \
     --data_file_paths $data_paths \
     --image_folders $image_folders \
     --is_reward_customized_from_vlm_module $is_reward_customized_from_vlm_module \
@@ -131,7 +85,7 @@ torchrun \
     --save_steps 100 \
     --num_generations 3 \
     --max_completion_length 2048 \
-    --reward_funcs ${REWARD_FUNCS} map iou partial_iou iou_fbeta \
+    --reward_funcs combined_map map iou partial_iou iou_fbeta \
     --beta 0.04 \
     --report_to none \
     --dataset-name this_is_not_used \
@@ -146,6 +100,6 @@ torchrun \
   2>&1 | tee "${LOG_PATH}"
 
 echo "=== Training Completed ==="
-echo "Model saved to: ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}"
+echo "Model saved to: ${REPO_HOME}/checkpoints/rl/${EXP_NAME}"
 echo "Logs saved to: ${LOG_PATH}"
 echo "Job finished at: $(date)"
