@@ -9,6 +9,9 @@
 #SBATCH --time=14:00:00
 #SBATCH --chdir=/cluster/customapps/medinfmk/fahrnr/VLM-R1
 
+# Ensure we're in the right directory
+cd /cluster/customapps/medinfmk/fahrnr/VLM-R1
+
 # Ensure slurm_logs directory exists
 mkdir -p /cluster/home/fahrnr/slurm_logs
 
@@ -19,34 +22,67 @@ conda activate rebecka
 # Configuration
 PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 export REPO_HOME="/cluster/customapps/medinfmk/fahrnr/VLM-R1"
-echo "REPO_HOME: $REPO_HOME"
+
+# Use HOME directory for writable outputs
+export OUTPUT_BASE="${HOME}/vlm_experiments"
+export RUNS_BASE="${HOME}/runs"
 
 # Your CXR data
 data_paths="${HOME}/train_scxr2.jsonl"
 image_folders="/cluster/dataset/medinfmk/public_radiology_repo"
 model_path="${REPO_HOME}/Qwen2.5-VL-3B-Instruct"
 is_reward_customized_from_vlm_module=True
-echo "data_paths: $data_paths"
-echo "image_folders: $image_folders"
 
-# Experiment configuration
-export EXP_NAME="CXR_combined_map_simple"
-TASK_TYPE="rec"
+# Task type: Use "cxr" for simple template with your comprehensive rewards
+TASK_TYPE="cxr"
+
+# Experiment configuration - CHANGE THESE FOR DIFFERENT EXPERIMENTS
+# Available reward functions with task_type="cxr":
+# - "iou" or "iou_only" (IoU Only)
+# - "map" or "map_only" (mAP Only) 
+# - "format" or "format_only" (Format Only)
+# - "combined" (50% IoU + 50% Format)
+# - "combined_map" (50% mAP + 50% Format)
+# - "partial_iou" (IoU with partial credit)
+# - "curriculum_combined" (Advanced: curriculum learning)
+# - "hierarchical" (Advanced: hierarchical rewards)
+# Multiple rewards: "combined_map map iou partial_iou"
+
+REWARD_FUNCS="combined_map"
+EXP_NAME="CXR_combined_map_cxr_task"
 
 # Training settings
 export DEBUG_MODE="true"
 export WANDB_DISABLED=true
 
-# Create directories in WRITABLE locations
+# Setup directories in writable locations
 mkdir -p ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}
 mkdir -p ${RUNS_BASE}/${EXP_NAME}/log
+
 export LOG_PATH="${RUNS_BASE}/${EXP_NAME}/log/debug_log.$(date +%Y-%m-%d-%H-%M-%S).txt"
+
+# Debug: Verify all paths
+echo "=== CONFIGURATION DEBUG ==="
+echo "HOME: $HOME"
+echo "REPO_HOME: $REPO_HOME"
+echo "OUTPUT_BASE: $OUTPUT_BASE"
+echo "RUNS_BASE: $RUNS_BASE"
+echo "EXP_NAME: $EXP_NAME"
+echo "TASK_TYPE: $TASK_TYPE"
+echo "REWARD_FUNCS: $REWARD_FUNCS"
+echo "Output directory: ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME}"
+echo "Log path: $LOG_PATH"
+echo "=========================="
 
 echo "=== CXR GRPO Training Start ==="
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURM_JOB_NODELIST"
 echo "GPUs: $SLURM_GPUS_ON_NODE"
 echo "Experiment: ${EXP_NAME}"
+echo "Task Type: ${TASK_TYPE}"
+echo "Reward functions: ${REWARD_FUNCS}"
+echo "Data: ${data_paths}"
+echo "Images: ${image_folders}"
 echo "Model: ${model_path}"
 echo "Logs: ${LOG_PATH}"
 echo "=== Training Starting ==="
@@ -55,7 +91,7 @@ echo "=== Training Starting ==="
 nvidia-smi
 
 # Change to source directory
-cd ${REPO_HOME}/src/open-r1-multimodal
+cd ${REPO_HOME}
 
 # Launch training
 torchrun \
@@ -64,7 +100,7 @@ torchrun \
   --node_rank=0 \
   --master_addr=127.0.0.1 \
   --master_port=12349 \
-  src/open_r1/grpo_jsonl.py \
+  src/open-r1-multimodal/src/open_r1/grpo_jsonl.py \
     --use_vllm False \
     --output_dir ${OUTPUT_BASE}/checkpoints/rl/${EXP_NAME} \
     --resume_from_checkpoint True \
@@ -72,7 +108,7 @@ torchrun \
     --data_file_paths $data_paths \
     --image_folders $image_folders \
     --is_reward_customized_from_vlm_module $is_reward_customized_from_vlm_module \
-    --task_type cxr \
+    --task_type $TASK_TYPE \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 3 \
     --gradient_checkpointing true \
