@@ -31,7 +31,7 @@ TRAIN_JSON="$HOME/rec_jsonl/train_rec_grpo.jsonl"
 VAL_JSON="$HOME/rec_jsonl/test_rec_grpo.jsonl"
 data_paths="${TRAIN_JSON}:${VAL_JSON}"
 # image_folders="/cluster/dataset/medinfmk/public_radiology_repo"
-image_folders="${DATA_DIR}/MIMIC-CXR-JPG:${DATA_DIR}/MIMIC-CXR-JPG"
+image_folders="${DATA_DIR}:${DATA_DIR}"
 model_path="${REPO_HOME}/Qwen2.5-VL-3B-Instruct"
 
 is_reward_customized_from_vlm_module=True
