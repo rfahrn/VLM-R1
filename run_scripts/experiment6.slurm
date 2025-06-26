@@ -93,7 +93,9 @@ torchrun \
 echo "✅ Training completed for ${EXP_NAME}"
 
 
-
+echo "WORLD_SIZE:    $(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l)"
+echo "PER_DEVICE_BS:  $PER_DEVICE_BS"
+echo "NUM_GENERATIONS:$NUM_GENERATIONS"
 
 
 
