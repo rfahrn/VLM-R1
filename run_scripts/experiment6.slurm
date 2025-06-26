@@ -75,7 +75,7 @@ torchrun \
     --run_name                        $EXP_NAME \
     --data_seed                       42 \
     --save_steps                      100 \
-    --num_generations                 4 \
+    --num_generations                 2 \
     --max_completion_length           2048 \
     --reward_funcs                    iou map format partial_iou iou_fbeta distance_based shaped_reward \
     --beta                            0.04 \
