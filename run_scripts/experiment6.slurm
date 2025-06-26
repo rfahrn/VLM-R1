@@ -54,6 +54,7 @@ WANDB_MODE=offline
 export WANDB_DIR="$HOME/wandb"
 export WANDB_CACHE_DIR="$HOME/.cache/wandb"
 mkdir -p "$WANDB_DIR" "$WANDB_CACHE_DIR"
+export WANDB_ANONYMOUS=must
 
 #### 4) Launch training
 torchrun \
