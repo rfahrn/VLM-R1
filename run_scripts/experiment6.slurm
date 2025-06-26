@@ -50,7 +50,7 @@ mkdir -p $HOME/checkpoints/rl/${EXP_NAME}
 export LOG_PATH="$HOME/runs/${EXP_NAME}/log/debug_log.$(date +%Y-%m-%d-%H-%M-%S).txt"
 
 WANDB_MODE=offline
-export WANDB_DISABLED=true
+# export WANDB_DISABLED=true
 
 
 #### 4) Launch training
