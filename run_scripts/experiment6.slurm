@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-#SBATCH --job-name=cxr_grpo
+#!/bin/bash
+#SBATCH --job-name=rec_grpo
 #SBATCH --output=/cluster/home/fahrnr/slurm_logs/%x_%j.out
 #SBATCH --error=/cluster/home/fahrnr/slurm_logs/%x_%j.err
 #SBATCH --partition=gpu
@@ -28,7 +28,7 @@ echo "REPO_HOME: $REPO_HOME"
 export OUTPUT_BASE="${HOME}/vlm_experiments"
 DATA_DIR="/cluster/dataset/medinfmk/public_radiology_repo"
 TRAIN_JSON="$HOME/rec_jsonl/train_rec_grpo.jsonl"
-VAL_JSON ="$HOME/rec_jsonl/test_rec_grpo.jsonl"   # using test as val
+VAL_JSON="$HOME/rec_jsonl/test_rec_grpo.jsonl"
 data_paths="${TRAIN_JSON}:${VAL_JSON}"
 # image_folders="/cluster/dataset/medinfmk/public_radiology_repo"
 image_folders="${DATA_DIR}/MIMIC-CXR-JPG:${DATA_DIR}/MIMIC-CXR-JPG"
