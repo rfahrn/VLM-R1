@@ -614,10 +614,10 @@ class Qwen2VLModule(VLMBaseModule):
             
             try:
                 gt_answer = Qwen2VLModule.extract_answer_content(sol)
-                gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text(gt_answer)
+                gt_bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(Qwen2VLModule.extract_answer_content(sol))
                 
                 pred_answer = Qwen2VLModule.extract_answer_content(content)
-                pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(pred_answer)
+                pred_bboxes = Qwen2VLModule.extract_all_bboxes_from_text_smart(Qwen2VLModule.extract_answer_content(content))
                 
                 if not pred_bboxes and not gt_bboxes:
                     reward = 1.0
