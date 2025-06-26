@@ -49,6 +49,10 @@ mkdir -p $HOME/runs/${EXP_NAME}/log
 mkdir -p $HOME/checkpoints/rl/${EXP_NAME}
 export LOG_PATH="$HOME/runs/${EXP_NAME}/log/debug_log.$(date +%Y-%m-%d-%H-%M-%S).txt"
 
+WANDB_MODE=offline
+
+
+
 #### 4) Launch training
 torchrun \
   --nproc_per_node=$(nvidia-smi --query-gpu=name --format=csv,noheader | wc -l) \
@@ -68,7 +72,7 @@ torchrun \
     --per_device_train_batch_size     1 \
     --gradient_accumulation_steps     8 \
     --gradient_checkpointing          true \
-    --logging_steps                   1 \
+    --logging_steps                   10 \
     --num_train_epochs                2 \
     --bf16                            \
     --attn_implementation             flash_attention_2 \
@@ -76,10 +80,10 @@ torchrun \
     --data_seed                       42 \
     --save_steps                      100 \
     --num_generations                 3 \
-    --max_completion_length           2048 \
+    --max_completion_length           256 \
     --reward_funcs                    iou map format partial_iou iou_fbeta distance_based shaped_reward \
     --beta                            0.04 \
-    --report_to                       none \
+
     --dataset-name                    this_is_not_used \
     --deepspeed                       $REPO_HOME/src/open-r1-multimodal/local_scripts/zero2.json \
     --learning_rate                   7e-5 \
@@ -88,6 +92,13 @@ torchrun \
     --lora_alpha                      128 \
     --lora_dropout                    0.05 \
     --lora_task_type                  CAUSAL_LM \
+
+    --report_to                       wandb \
+
+    --val_split_ratio                 0.1 \
+    --evaluation_strategy             steps \
+    --eval_steps                      100 \
+    --save_total_limit                3 \
     --freeze_vision_modules           true
 
 echo "✅ Training completed for ${EXP_NAME}"
