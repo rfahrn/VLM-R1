@@ -50,7 +50,7 @@ mkdir -p $HOME/checkpoints/rl/${EXP_NAME}
 export LOG_PATH="$HOME/runs/${EXP_NAME}/log/debug_log.$(date +%Y-%m-%d-%H-%M-%S).txt"
 
 WANDB_MODE=offline
-
+export WANDB_DISABLED=true
 
 
 #### 4) Launch training
@@ -83,7 +83,6 @@ torchrun \
     --max_completion_length           256 \
     --reward_funcs                    iou map format partial_iou iou_fbeta distance_based shaped_reward \
     --beta                            0.04 \
-
     --dataset-name                    this_is_not_used \
     --deepspeed                       $REPO_HOME/src/open-r1-multimodal/local_scripts/zero2.json \
     --learning_rate                   7e-5 \
@@ -92,9 +91,7 @@ torchrun \
     --lora_alpha                      128 \
     --lora_dropout                    0.05 \
     --lora_task_type                  CAUSAL_LM \
-
     --report_to                       wandb \
-
     --val_split_ratio                 0.1 \
     --evaluation_strategy             steps \
     --eval_steps                      100 \
