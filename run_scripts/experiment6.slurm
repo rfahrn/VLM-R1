@@ -49,12 +49,13 @@ mkdir -p $HOME/runs/${EXP_NAME}/log
 mkdir -p $HOME/checkpoints/rl/${EXP_NAME}
 export LOG_PATH="$HOME/runs/${EXP_NAME}/log/debug_log.$(date +%Y-%m-%d-%H-%M-%S).txt"
 
-WANDB_MODE=offline
-# export WANDB_DISABLED=true
-export WANDB_DIR="$HOME/wandb"
+
+export WANDB_API_KEY="ANYTHING"            
+export WANDB_MODE=offline                 
+export WANDB_ANONYMOUS=must               
+export WANDB_DIR="$HOME/wandb"            
 export WANDB_CACHE_DIR="$HOME/.cache/wandb"
 mkdir -p "$WANDB_DIR" "$WANDB_CACHE_DIR"
-export WANDB_ANONYMOUS=must
 
 #### 4) Launch training
 torchrun \
