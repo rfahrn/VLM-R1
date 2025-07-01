@@ -3,12 +3,7 @@ PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 export REPO_HOME="${PROJECT_ROOT}"
 echo "🛠  REPO_HOME = $REPO_HOME"
 
-data_paths=(
-  "/iopsstor/scratch/cscs/rfahrni/train_rec_grpo.jsonl"
-  "/iopsstor/scratch/cscs/rfahrni/test_rec_grpo.jsonl"
-)
-
-data_paths="$(IFS=:; echo "${data_paths[*]}")"
+data_paths="/capstor/scratch/cscs/rfahrni/train_rec_grpo.jsonl:/capstor/scratch/cscs/rfahrni/test_rec_grpo.jsonl"
 echo "📑 data_paths = $data_paths"
 
 # ─── Where the images live (MS-CXR PNGs) ───────────────────────────────────────
