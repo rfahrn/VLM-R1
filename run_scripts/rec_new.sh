@@ -64,7 +64,7 @@ torchrun \
     --save_steps 100 \
     --num_generations 8 \
     --max_completion_length 2048 \
-    --reward_funcs accuracy format combined_map map iou partial_iou iou_fbeta \
+    --reward_funcs accuracy format map iou partial_iou iou_fbeta \
     --beta 0.04 \
     --report_to wandb \
     --dataset-name this_is_not_used \
