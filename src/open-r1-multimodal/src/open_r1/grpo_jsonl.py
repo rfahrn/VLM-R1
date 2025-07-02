@@ -921,6 +921,8 @@ def get_vlm_module(model_name_or_path):
         return Qwen2VLModule
     elif "internvl" in model_name_or_path.lower():
         return InvernVLModule
+    elif "radvlm" or "llava" in model_name_or_path.lower():
+        return LlavaOneVisionModule
     else:
         raise ValueError(f"Unsupported model: {model_name_or_path}")
 
