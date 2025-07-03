@@ -7,12 +7,12 @@ data_paths="/capstor/scratch/cscs/rfahrni/train_rec_grpo.jsonl:/capstor/scratch/
 echo "📑 data_paths = $data_paths"
 
 # ─── Where the images live (MS-CXR PNGs) ───────────────────────────────────────
-image_root="/capstor/store/cscs/swissai/a02/health_mm_llm_shared/data"
+image_root="/capstor/store/cscs/swissai/a135/RadVLM_project/data/"
 image_folders="$image_root:$image_root"
 echo "🖼  image_folders = $image_folders"
 
 # ─── Which model you want to fine-tune ─────────────────────────────────────────
-model_path="/capstor/store/cscs/swissai/a02/health_mm_llm_shared/models/Qwen2.5-VL-7B-CS"
+model_path="/capstor/store/cscs/swissai/a135/RadVLM_project//models/Qwen2.5-VL-7B-CS"
 echo "🤖 model_path = $model_path"
 
 # ─── Experiment name & task settings ──────────────────────────────────────────
