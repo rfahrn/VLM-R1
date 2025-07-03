@@ -33,7 +33,7 @@ echo "📝 LOG_PATH = $LOG_PATH"
 
 # ─── Launch distributed training ───────────────────────────────────────────────
 torchrun \
-  --nproc_per_node=8 \
+  --nproc_per_node=3 \
   --nnodes=1 \
   --node_rank=0 \
   --master_addr="127.0.0.1" \
