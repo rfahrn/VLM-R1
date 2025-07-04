@@ -60,7 +60,7 @@ torchrun \
     --num_generations 8 \
     --max_completion_length 2048 \
     --reward_funcs accuracy format \
-    --beta 0.04 \
+    --beta 0 \
     --report_to wandb \
     --dataset-name this_is_not_used \
     --deepspeed "${REPO_HOME}/src/open-r1-multimodal/local_scripts/zero3.json"
