@@ -33,13 +33,13 @@ echo "📝 LOG_PATH = $LOG_PATH"
 
 # ─── Launch distributed training ───────────────────────────────────────────────
 torchrun \
-  --nproc_per_node=3 \
-  --nnodes=1 \
-  --node_rank=0 \
-  --master_addr="127.0.0.1" \
-  --master_port=12349 \
-  src/open_r1/grpo_jsonl.py \
-    --model_kwargs trust_remote_code=True \ 
+    --nproc_per_node=3 \
+    --nnodes=1 \
+    --node_rank=0 \
+    --master_addr=127.0.0.1 \
+    --master_port=12349 \
+    src/open_r1/grpo_jsonl.py \
+    --model_kwargs '{"trust_remote_code": true}' \
     --use_vllm False \
     --output_dir "${REPO_HOME}/checkpoints/rl/${EXP_NAME}" \
     --resume_from_checkpoint True \
@@ -64,6 +64,6 @@ torchrun \
     --beta 0.04 \
     --report_to wandb \
     --dataset-name this_is_not_used \
-    --deepspeed ${REPO_HOME}/src/open-r1-multimodal/local_scripts/zero3.json \
+    --deepspeed "${REPO_HOME}/src/open-r1-multimodal/local_scripts/zero3.json"
 
 echo "✅ Training completed for ${EXP_NAME}"
