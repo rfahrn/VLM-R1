@@ -917,7 +917,8 @@ SYSTEM_PROMPT = (
 
 
 def get_vlm_module(model_name_or_path):
-    if "Qwen2.5-VL" in model_name_or_path.lower():
+    
+    if "qwen" in model_name_or_path.lower():
         return Qwen2VLModule
     elif "internvl" in model_name_or_path.lower():
         return InvernVLModule
