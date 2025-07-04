@@ -230,8 +230,6 @@ class VLMGRPOTrainer(Trainer):
         # Trained model
         model_init_kwargs = args.model_init_kwargs or {}
         # FIXME
-        # make sure custom modelling classes (Qwen2.5-VL, InternVL …) can be loaded ----- added by Rebecka to load custom Checkpoint  
-        model_init_kwargs.setdefault("trust_remote_code", True)
         # Remember to modify it in the invernvl
         model_init_kwargs["attn_implementation"] = attn_implementation
         if model_init_kwargs.get("torch_dtype") is None:
