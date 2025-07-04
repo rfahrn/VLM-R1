@@ -40,6 +40,7 @@ torchrun \
     --master_addr=127.0.0.1 \
     --master_port=12349 \
     src/open_r1/grpo_jsonl.py \
+    --model_key qwen \
     --use_vllm False \
     --output_dir "${REPO_HOME}/checkpoints/rl/${EXP_NAME}" \
     --resume_from_checkpoint True \
