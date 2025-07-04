@@ -230,7 +230,7 @@ class VLMGRPOTrainer(Trainer):
         # Trained model
         model_init_kwargs = args.model_init_kwargs or {}
         # FIXME
-        model_init_kwargs.setdefault("trust_remote_code", True) 
+        #model_init_kwargs.setdefault("trust_remote_code", True) 
         # Remember to modify it in the invernvl
         model_init_kwargs["attn_implementation"] = attn_implementation
         if model_init_kwargs.get("torch_dtype") is None:
