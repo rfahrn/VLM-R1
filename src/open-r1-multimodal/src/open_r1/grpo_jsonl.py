@@ -917,11 +917,11 @@ SYSTEM_PROMPT = (
 
 
 def get_vlm_module(model_name_or_path):
-    if "qwen" in model_name_or_path.lower():
+    if "Qwen2.5-VL" in model_name_or_path.lower():
         return Qwen2VLModule
     elif "internvl" in model_name_or_path.lower():
         return InvernVLModule
-    elif "radvlm" or "llava" in model_name_or_path.lower():
+    elif "llava" in model_name_or_path.lower():
         return LlavaOneVisionModule
     else:
         raise ValueError(f"Unsupported model: {model_name_or_path}")
