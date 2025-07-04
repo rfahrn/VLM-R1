@@ -16,7 +16,7 @@ model_path="/capstor/scratch/cscs/rfahrni/models/Qwen2.5-VL-7B-Instruct/" # "/ca
 echo "🤖 model_path = $model_path"
 
 # ─── Experiment name & task settings ──────────────────────────────────────────
-export EXP_NAME= "Qwen2.5-VL-7B" 
+export EXP_NAME="Qwen2.5-VL-7B"
 # "Qwen2.5-VL-7B-CS-rec"
 TASK_TYPE="rec"
 is_reward_customized_from_vlm_module=True
