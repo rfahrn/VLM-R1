@@ -1,4 +1,18 @@
 #!/usr/bin/env bash
+
+
+# ─── SLURM Job Configuration ───────────────────────────────────────────────────
+#SBATCH --job-name=qwen-grpo-rec
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=3
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=0                          # Use all available memory
+#SBATCH --gres=gpu:3                     # Request 3 GPUs
+#SBATCH --time=12:00:00                  # Adjust as needed
+#SBATCH --partition=gpu                  # Adjust to your partition name
+#SBATCH --output=slurm-%j.out
+#SBATCH --error=slurm-%j.err
+
 PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 export REPO_HOME="${PROJECT_ROOT}"
 echo "🛠  REPO_HOME = $REPO_HOME"
