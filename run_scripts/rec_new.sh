@@ -4,6 +4,10 @@ PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 export REPO_HOME="${PROJECT_ROOT}"
 echo "🛠  REPO_HOME = $REPO_HOME"
 
+echo "📦 Installing PEFT library..."
+pip install -U peft
+
+
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export CUDA_LAUNCH_BLOCKING=0
 
