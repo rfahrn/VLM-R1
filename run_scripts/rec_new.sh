@@ -70,7 +70,7 @@ torchrun \
     --save_steps 100 \
     --num_generations 4 \
     --max_completion_length 1536 \
-    --reward_funcs accuracy format \
+    --reward_funcs iou format curriculum_simple \
     --beta 0.04 \
     --learning_rate 1e-5 \
     --report_to wandb \
