@@ -1045,14 +1045,13 @@ class Qwen2VLModule(VLMBaseModule):
         
         function_registry = {
             # Basic reward functions
-            #"accuracy": Qwen2VLModule.iou_reward,
+            "accuracy": Qwen2VLModule.iou_reward_simple_fix,  # ← FIXED
             "format": Qwen2VLModule.format_reward_rec, 
             "format_only": Qwen2VLModule.format_reward_rec, 
             
-            # IoU-based rewards
-            #"iou": Qwen2VLModule.iou_reward,
-            #"iou_only": Qwen2VLModule.iou_reward,
-            "iou": Qwen2VLModule.iou_reward_simple_fix,
+            # IoU-based rewards  
+            "iou": Qwen2VLModule.iou_reward_simple_fix,  # ← FIXED
+            "iou_only": Qwen2VLModule.iou_reward_simple_fix,  # ← FIXED
             "partial_iou": Qwen2VLModule.partial_credit_iou_reward,
             
             # mAP-based rewards  
@@ -1065,8 +1064,7 @@ class Qwen2VLModule(VLMBaseModule):
             
             # Anti-reward-hacking functions (PROVEN BEST PERFORMERS)
             "curriculum_combined": Qwen2VLModule.curriculum_combined_reward,
-            "curriculum_simple": Qwen2VLModule.curriculum_combined_simple_fix,
-            
+            "curriculum_simple": Qwen2VLModule.curriculum_combined_simple_fix,  # ← NEW
             "hierarchical": Qwen2VLModule.hierarchical_reward,
             "threshold_gated": Qwen2VLModule.threshold_gated_reward,
             
