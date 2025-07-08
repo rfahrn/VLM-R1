@@ -68,7 +68,7 @@ torchrun \
     --run_name "${EXP_NAME}" \
     --data_seed 42 \
     --save_steps 100 \
-    --num_generations 6 \
+    --num_generations 4 \
     --max_completion_length 1536 \
     --reward_funcs accuracy format \
     --beta 0.04 \
