@@ -1,45 +1,35 @@
 #!/usr/bin/env bash
-
 PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 export REPO_HOME="${PROJECT_ROOT}"
 echo "🛠  REPO_HOME = $REPO_HOME"
-
 echo "📦 Installing PEFT library..."
 pip install -U peft
-
-
+export PYTHONPATH="${REPO_HOME}/src/open-r1-multimodal/src:$PYTHONPATH"
+echo "🐍 PYTHONPATH = $PYTHONPATH"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export CUDA_LAUNCH_BLOCKING=0
-
 data_paths="/capstor/scratch/cscs/rfahrni/train_rec_grpo.jsonl:/capstor/scratch/cscs/rfahrni/test_rec_grpo.jsonl"
 echo "📑 data_paths = $data_paths"
-
 # ─── Where the images live (MS-CXR PNGs) ───────────────────────────────────────
 image_root="/capstor/store/cscs/swissai/a135/RadVLM_project/data/"
 image_folders="$image_root:$image_root"
 echo "🖼  image_folders = $image_folders"
-
 # ─── Which model you want to fine-tune ─────────────────────────────────────────
 model_path="/capstor/scratch/cscs/rfahrni/models/Qwen2.5-VL-7B-Instruct" # "/capstor/store/cscs/swissai/a135/RadVLM_project/models/Qwen2.5-VL-7B-CS"
 echo "🤖 model_path = $model_path"
-
 # ─── Experiment name & task settings ──────────────────────────────────────────
 export EXP_NAME="Qwen2.5-VL-7B-lora"
 # "Qwen2.5-VL-7B-CS-rec"
 TASK_TYPE="rec"
 is_reward_customized_from_vlm_module=True
-
 # ─── Prepare logs & checkpoints ────────────────────────────────────────────────
 export WANDB_API_KEY="15b5344c70fad59908246ded2a98fdef6a4e9eda"
 export WANDB_PROJECT="GRPO"
-
-
 cd "${REPO_HOME}/src/open-r1-multimodal"
 export DEBUG_MODE="true"
 mkdir -p "${REPO_HOME}/runs/${EXP_NAME}/log"
 export LOG_PATH="${REPO_HOME}/runs/${EXP_NAME}/log/debug_$(date +%Y-%m-%d-%H-%M-%S).txt"
 echo "📝 LOG_PATH = $LOG_PATH"
-
 # ─── LoRA Training (Memory Efficient!) ─────────────────────────────────────────
 echo "🚀 Starting LoRA training with 4 GPUs..."
 # ─── Launch distributed training ───────────────────────────────────────────────
