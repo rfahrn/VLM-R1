@@ -20,7 +20,7 @@ model_path="/capstor/scratch/cscs/rfahrni/models/Qwen2.5-VL-7B-Instruct" # "/cap
 echo "🤖 model_path = $model_path"
 
 # ─── Experiment name & task settings ──────────────────────────────────────────
-export EXP_NAME="Qwen2.5-VL-7B"
+export EXP_NAME="Qwen2.5-VL-7B-lora"
 # "Qwen2.5-VL-7B-CS-rec"
 TASK_TYPE="rec"
 is_reward_customized_from_vlm_module=True
@@ -36,9 +36,11 @@ mkdir -p "${REPO_HOME}/runs/${EXP_NAME}/log"
 export LOG_PATH="${REPO_HOME}/runs/${EXP_NAME}/log/debug_$(date +%Y-%m-%d-%H-%M-%S).txt"
 echo "📝 LOG_PATH = $LOG_PATH"
 
+# ─── LoRA Training (Memory Efficient!) ─────────────────────────────────────────
+echo "🚀 Starting LoRA training with 4 GPUs..."
 # ─── Launch distributed training ───────────────────────────────────────────────
 torchrun \
-    --nproc_per_node=3 \
+    --nproc_per_node=4 \
     --nnodes=1 \
     --node_rank=0 \
     --master_addr=127.0.0.1 \
@@ -52,8 +54,8 @@ torchrun \
     --image_folders "${image_folders}" \
     --is_reward_customized_from_vlm_module "${is_reward_customized_from_vlm_module}" \
     --task_type "${TASK_TYPE}" \
-    --per_device_train_batch_size 8 \
-    --gradient_accumulation_steps 2 \
+    --per_device_train_batch_size 4 \
+    --gradient_accumulation_steps 4 \
     --gradient_checkpointing true \
     --logging_steps 1 \
     --num_train_epochs 2 \
@@ -62,12 +64,19 @@ torchrun \
     --run_name "${EXP_NAME}" \
     --data_seed 42 \
     --save_steps 100 \
-    --num_generations 8 \
-    --max_completion_length 2048 \
+    --num_generations 6 \
+    --max_completion_length 1536 \
     --reward_funcs accuracy format \
-    --beta 0 \
+    --beta 0.04 \
+    --learning_rate 1e-5 \
     --report_to wandb \
     --dataset-name this_is_not_used \
-    --deepspeed "${REPO_HOME}/src/open-r1-multimodal/local_scripts/zero3.json"
-
-echo "✅ Training completed for ${EXP_NAME}"
+    --deepspeed "${REPO_HOME}/src/open-r1-multimodal/local_scripts/zero2.json" \
+    --use_peft true \
+    --lora_r 64 \
+    --lora_alpha 128 \
+    --lora_dropout 0.05 \
+    --lora_task_type CAUSAL_LM \
+    --freeze_vision_modules true
+    
+echo "✅ LoRA Training completed for ${EXP_NAME}"
