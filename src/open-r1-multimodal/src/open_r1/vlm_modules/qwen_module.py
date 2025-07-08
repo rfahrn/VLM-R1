@@ -1076,8 +1076,11 @@ class Qwen2VLModule(VLMBaseModule):
             "distance_based": Qwen2VLModule.distance_based_reward,
         }
         
+        print(f"Looking for function: '{func}'")
+        print(f"Available functions: {list(function_registry.keys())}")
+        print(f"'iou' in registry: {'iou' in function_registry}")
+    
         if func not in function_registry:
             available_funcs = list(function_registry.keys())
             raise ValueError(f"Unsupported reward function: '{func}'. Available: {available_funcs}")
-        
         return function_registry[func]
