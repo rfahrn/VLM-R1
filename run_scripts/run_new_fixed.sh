@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 PROJECT_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 export REPO_HOME="${PROJECT_ROOT}"
-echo "🛠  REPO_HOME = $REPO_HOME"
+echo "🛠   REPO_HOME = $REPO_HOME"
 
 data_paths="/capstor/scratch/cscs/rfahrni/train_rec_grpo.jsonl:/capstor/scratch/cscs/rfahrni/test_rec_grpo.jsonl"
 echo "📑 data_paths = $data_paths"
@@ -9,23 +9,21 @@ echo "📑 data_paths = $data_paths"
 # ─── Where the images live (MS-CXR PNGs) ───────────────────────────────────────
 image_root="/capstor/store/cscs/swissai/a135/RadVLM_project/data/"
 image_folders="$image_root:$image_root"
-echo "🖼  image_folders = $image_folders"
+echo "🖼   image_folders = $image_folders"
 
 # ─── Which model you want to fine-tune ─────────────────────────────────────────
 # Use Hugging Face model name instead of local path that doesn't exist
-model_path="Qwen/Qwen2.5-VL-7B-Instruct" # Alternative: "/capstor/store/cscs/swissai/a135/RadVLM_project/models/Qwen2.5-VL-7B-CS"
+model_path="Qwen/Qwen2.5-VL-7B-Instruct"
 echo "🤖 model_path = $model_path"
 
 # ─── Experiment name & task settings ──────────────────────────────────────────
 export EXP_NAME="Qwen2.5-VL-7B"
-# "Qwen2.5-VL-7B-CS-rec"
 TASK_TYPE="rec"
 is_reward_customized_from_vlm_module=True
 
 # ─── Prepare logs & checkpoints ────────────────────────────────────────────────
 export WANDB_API_KEY="15b5344c70fad59908246ded2a98fdef6a4e9eda"
 export WANDB_PROJECT="GRPO"
-
 
 cd "${REPO_HOME}/src/open-r1-multimodal"
 export DEBUG_MODE="true"
