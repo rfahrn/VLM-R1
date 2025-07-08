@@ -932,10 +932,111 @@ class Qwen2VLModule(VLMBaseModule):
         
         return gated_rewards
 
+    @staticmethod
+    def extract_gt_bboxes_simple_fix(gt_text: str) -> List[List[float]]:
+        """
+        SIMPLE FIX: Extract ground truth from JSON format in your training data.
+        """
+        try:
+            # Parse the conversations format
+            if gt_text.strip().startswith('{') and '"bbox_2d"' in gt_text:
+                gt_data = json.loads(gt_text.strip())
+                if "bbox_2d" in gt_data:
+                    return gt_data["bbox_2d"]  # Already relative [0-1]
+            
+            # Fallback to existing smart extraction for other formats
+            return Qwen2VLModule.extract_all_bboxes_from_text_smart(gt_text, auto_normalize=True)
+            
+        except Exception:
+            return Qwen2VLModule.extract_all_bboxes_from_text_smart(gt_text, auto_normalize=True)
+    
+    @staticmethod
+    def extract_pred_bboxes_simple_fix(pred_text: str) -> List[List[float]]:
+        """
+        SIMPLE FIX: Extract predictions from <answer> tags.
+        """
+        pred_answer = Qwen2VLModule.extract_answer_content(pred_text)
+        return Qwen2VLModule.extract_all_bboxes_from_text_smart(pred_answer, auto_normalize=True)
+    
+    @staticmethod
+    def iou_reward_simple_fix(completions, solution, **kwargs):
+        """
+        SIMPLE FIX: IoU reward with proper JSON extraction.
+        """
+        contents = [completion[0]["content"] for completion in completions]
+        rewards = []
+        
+        for content, sol in zip(contents, solution):
+            reward = 0.0
+            
+            try:
+                # Use the fixed extraction methods
+                gt_bboxes = Qwen2VLModule.extract_gt_bboxes_simple_fix(sol)
+                pred_bboxes = Qwen2VLModule.extract_pred_bboxes_simple_fix(content)
+                
+                # Debug logging
+                if os.getenv("DEBUG_MODE") == "true":
+                    log_path = os.getenv("LOG_PATH", "debug.log")
+                    current_time = datetime.now().strftime("%d-%H-%M-%S-%f")
+                    with open(log_path.replace(".txt", "_simple_fix_debug.txt"), "a", encoding='utf-8') as f:
+                        f.write(f"------------- {current_time} SIMPLE FIX Debug -------------\n")
+                        f.write(f"Raw model output: {content}\n")
+                        f.write(f"Raw ground truth: {sol}\n")
+                        f.write(f"Extracted pred bboxes: {pred_bboxes}\n")
+                        f.write(f"Extracted GT bboxes: {gt_bboxes}\n")
+                
+                reward = Qwen2VLModule.calculate_multi_bbox_score(pred_bboxes, gt_bboxes)
+                
+                if os.getenv("DEBUG_MODE") == "true":
+                    with open(log_path.replace(".txt", "_simple_fix_debug.txt"), "a", encoding='utf-8') as f:
+                        f.write(f"IoU reward: {reward}\n\n")
+                            
+            except Exception as e:
+                print(f"Error in simple fix IoU: {e}")
+                reward = 0.0
+            
+            rewards.append(reward)
+        
+        return rewards
+    
+    @staticmethod
+    def curriculum_combined_simple_fix(completions, solution, **kwargs):
+        """
+        SIMPLE FIX: Curriculum learning with proper extraction.
+        """
+        current_step = kwargs.get('current_step', 0)
+        
+        if current_step < 200:
+            format_weight, iou_weight = 0.9, 0.1
+            phase = "Structure Learning"
+        elif current_step < 500:
+            format_weight, iou_weight = 0.7, 0.3  
+            phase = "Transition"
+        else:
+            format_weight, iou_weight = 0.3, 0.7
+            phase = "Accuracy Focus"
+        
+        # Use the simple fixed IoU function
+        iou_rewards = Qwen2VLModule.iou_reward_simple_fix(completions, solution, **kwargs)
+        format_rewards = Qwen2VLModule.format_reward_rec(completions, **kwargs)
+        
+        combined = [format_weight * fmt + iou_weight * iou 
+                    for fmt, iou in zip(format_rewards, iou_rewards)]
+        
+        if os.getenv("DEBUG_MODE") == "true":
+            log_path = os.getenv("LOG_PATH", "debug.log")
+            with open(log_path.replace(".txt", "_simple_curriculum.txt"), "a", encoding='utf-8') as f:
+                f.write(f"Step {current_step} - {phase}\n")
+                f.write(f"Avg IoU: {sum(iou_rewards)/len(iou_rewards):.3f}\n")
+                f.write(f"Non-zero IoU: {sum(1 for r in iou_rewards if r > 0)}/{len(iou_rewards)}\n\n")
+        
+        return combined
+    
     # ========================================================================
     # REWARD FUNCTION SELECTION
     # ========================================================================
 
+    
     @staticmethod
     def select_reward_func(func: str, task_type: str):
         """Enhanced reward function selection with proper format function wrapper."""
@@ -944,13 +1045,14 @@ class Qwen2VLModule(VLMBaseModule):
         
         function_registry = {
             # Basic reward functions
-            "accuracy": Qwen2VLModule.iou_reward,
+            #"accuracy": Qwen2VLModule.iou_reward,
             "format": Qwen2VLModule.format_reward_rec, 
             "format_only": Qwen2VLModule.format_reward_rec, 
             
             # IoU-based rewards
-            "iou": Qwen2VLModule.iou_reward,
-            "iou_only": Qwen2VLModule.iou_reward,
+            #"iou": Qwen2VLModule.iou_reward,
+            #"iou_only": Qwen2VLModule.iou_reward,
+            "iou": Qwen2VLModule.iou_reward_simple_fix,
             "partial_iou": Qwen2VLModule.partial_credit_iou_reward,
             
             # mAP-based rewards  
@@ -963,6 +1065,8 @@ class Qwen2VLModule(VLMBaseModule):
             
             # Anti-reward-hacking functions (PROVEN BEST PERFORMERS)
             "curriculum_combined": Qwen2VLModule.curriculum_combined_reward,
+            "curriculum_simple": Qwen2VLModule.curriculum_combined_simple_fix,
+            
             "hierarchical": Qwen2VLModule.hierarchical_reward,
             "threshold_gated": Qwen2VLModule.threshold_gated_reward,
             
