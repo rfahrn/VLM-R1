@@ -18,7 +18,7 @@ echo "🖼  image_folders = $image_folders"
 model_path="/capstor/store/cscs/swissai/a135/RadVLM_project/models/Qwen2.5-VL-7B-CS" # "/capstor/scratch/cscs/rfahrni/models/Qwen2.5-VL-7B-Instruct" 
 echo "🤖 model_path = $model_path"
 # ─── Experiment name & task settings ──────────────────────────────────────────
-export EXP_NAME="Qwen2.5-VL-7B-lora"
+export EXP_NAME="Qwen2.5-VL-7B-CS-lora"
 # "Qwen2.5-VL-7B-CS-rec"
 TASK_TYPE="rec"
 is_reward_customized_from_vlm_module=True
