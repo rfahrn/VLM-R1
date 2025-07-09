@@ -15,7 +15,7 @@ image_root="/capstor/store/cscs/swissai/a135/RadVLM_project/data/"
 image_folders="$image_root:$image_root"
 echo "🖼  image_folders = $image_folders"
 # ─── Which model you want to fine-tune ─────────────────────────────────────────
-model_path="/capstor/scratch/cscs/rfahrni/models/Qwen2.5-VL-7B-Instruct" # "/capstor/store/cscs/swissai/a135/RadVLM_project/models/Qwen2.5-VL-7B-CS"
+model_path="/capstor/store/cscs/swissai/a135/RadVLM_project/models/Qwen2.5-VL-7B-CS" # "/capstor/scratch/cscs/rfahrni/models/Qwen2.5-VL-7B-Instruct" 
 echo "🤖 model_path = $model_path"
 # ─── Experiment name & task settings ──────────────────────────────────────────
 export EXP_NAME="Qwen2.5-VL-7B-lora"
